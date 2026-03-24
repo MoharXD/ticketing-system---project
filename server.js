@@ -11,7 +11,7 @@ const Event = require('./models/Event');
 const Seat = require('./models/Seat');
 
 const app = express();
-// FIXED: Use Render's dynamically assigned port, or 3000 for local development
+// Use Render's dynamically assigned port, or 3000 for local development
 const PORT = process.env.PORT || 3000;
 
 // --- MIDDLEWARE ---
@@ -22,7 +22,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Sets up Server-Side Sessions to remember logged-in users
 app.use(session({
-    // FIXED: Use Render environment variable for the session secret
+    // Use Render environment variable for the session secret
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
     saveUninitialized: false,
@@ -30,7 +30,7 @@ app.use(session({
 }));
 
 // --- DATABASE CONNECTION ---
-// FIXED: Use Render environment variable for MongoDB connection
+// Use Render environment variable for MongoDB connection
 const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
 
 mongoose.connect(DB_URI)
@@ -85,24 +85,43 @@ app.post('/api/admin/signup', async (req, res) => {
     }
 });
 
+// --- THE NEW TRACKED LOGIN ROUTE ---
 app.post('/api/login', async (req, res) => {
+    console.log(`\n======================================`);
+    console.log(`[>>>] LOGIN ATTEMPT: "${req.body.username}"`);
     try {
         const { username, password } = req.body;
         const cleanUsername = username.trim();
         
+        console.log(`[1] Searching database for user...`);
         const user = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
-        if (!user) return res.status(404).json({ success: false, notFound: true, message: "User not found. Would you like to sign up?" });
+        
+        if (!user) {
+            console.log(`[---] FAILED: User not found in database.`);
+            return res.status(404).json({ success: false, notFound: true, message: "User not found. Would you like to sign up?" });
+        }
 
+        console.log(`[2] User found! Comparing passwords...`);
         // SECURITY: Compare the plaintext password from the user with the hashed password in the DB
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(401).json({ success: false, message: "Incorrect password. Please try again." });
+        
+        if (!isMatch) {
+            console.log(`[---] FAILED: Passwords do not match.`);
+            return res.status(401).json({ success: false, message: "Incorrect password. Please try again." });
+        }
 
+        console.log(`[3] Passwords match! Creating session...`);
         // Establish the session
         req.session.userId = user._id;
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin;
+        
+        console.log(`[SUCCESS] User ${user.username} successfully logged in!`);
+        console.log(`======================================\n`);
+        
         res.json({ success: true, username: user.username, isAdmin: user.isAdmin });
     } catch (err) {
+        console.error("🚨 CRITICAL LOGIN ERROR:", err);
         res.status(500).json({ success: false, message: "Server error." });
     }
 });
