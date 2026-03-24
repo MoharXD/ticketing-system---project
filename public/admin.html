@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard | TicketMaster Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-dark d-flex flex-column min-vh-100">
+    
+    <header>
+        <nav class="navbar bg-warning">
+            <div class="container d-flex justify-content-between align-items-center">
+                <span class="navbar-brand text-dark">🛠 Admin Dashboard</span>
+                <a href="index.html" class="btn btn-dark btn-sm fw-bold">Back to Main Site</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mt-5 flex-grow-1">
+        
+        <section class="mb-5">
+            <h4 class="text-white mb-3 fw-bold">📊 Analytics Dashboard</h4>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card analytics-card-revenue border-0 h-100 shadow">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-uppercase">Total Revenue</h6>
+                            <h2 class="fw-bold mb-0">₹<span id="stat-revenue">0</span></h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card analytics-card-tickets border-0 h-100 shadow">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-uppercase">Tickets Sold</h6>
+                            <h2 class="fw-bold mb-0" id="stat-tickets">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card analytics-card-events border-0 h-100 shadow">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-uppercase">Active Events</h6>
+                            <h2 class="fw-bold mb-0" id="stat-events">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card analytics-card-users border-0 h-100 shadow">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-uppercase">Registered Users</h6>
+                            <h2 class="fw-bold mb-0" id="stat-users">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow">
+                <div class="card-header fs-6 border-0 pt-3 pb-2 fw-bold text-warning">📈 Per-Event Breakdown</div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Event Title</th>
+                                <th>Type</th>
+                                <th>Occupancy Status</th>
+                                <th class="text-end pe-4">Revenue Generated</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analytics-table-body">
+                            <tr><td colspan="4" class="text-center text-muted py-3">Loading analytics...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="card mb-5 border-0">
+            <div class="card-header fs-5 border-0 pt-4 pb-3">📅 Event Management</div>
+            <div class="card-body p-4">
+                
+                <form id="event-form" class="mb-5 p-4 rounded-4" style="background: rgba(0,0,0,0.2); border: 1px solid #334155;">
+                    <h4 id="form-title" class="text-warning mb-4 fw-bold">✨ Create New Event</h4>
+                    <input type="hidden" id="event-id">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Event Title</label>
+                            <input type="text" id="event-title" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-warning">Poster/Image URL (Postimg/Pinterest)</label>
+                            <input type="text" id="event-image" class="form-control" placeholder="https://..." required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-danger">Age Limit (0 = All Ages)</label>
+                            <input type="number" id="event-age" class="form-control" value="0" min="0" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label text-info">Event Type</label>
+                            <select id="event-type" class="form-select" required>
+                                <option value="Seated">Seated (Auto-Generates Map)</option>
+                                <option value="General">General Admission</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-info">Capacity (Total Tickets)</label>
+                            <input type="number" id="event-capacity" class="form-control" min="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-success">Ticket Price (₹)</label>
+                            <input type="number" id="event-price" class="form-control" min="0" value="0" required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Start Date & Time</label>
+                            <input type="datetime-local" id="event-start" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">End Date & Time</label>
+                            <input type="datetime-local" id="event-end" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Location / Venue</label>
+                            <input type="text" id="event-location" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-12 mt-3">
+                            <label class="form-label">Event Description</label>
+                            <textarea id="event-description" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success fw-bold px-5" id="event-submit-btn">Publish Event</button>
+                        <button type="button" class="btn btn-outline-danger ms-3 d-none fw-bold" id="event-cancel-btn" onclick="resetEventForm()">Cancel Edit</button>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Event Details</th>
+                                <th>Type/Price</th>
+                                <th>Schedule</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="event-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="card border-0 mb-5">
+            <div class="card-header fs-5 border-0 pt-4 pb-3">👥 User Management</div>
+            <div class="card-body p-4 table-responsive">
+                <table class="table table-dark table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="mt-auto py-3 text-center" style="background-color: #151e2e; border-top: 1px solid #334155;">
+        <div class="container">
+            <small class="text-muted fw-bold">&copy; 2024 Ticket Booking Admin System. All Rights Reserved.</small>
+        </div>
+    </footer>
+
+    <script src="js/admin.js"></script> 
+</body>
+</html>
