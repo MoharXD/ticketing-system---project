@@ -5,9 +5,9 @@
   "main": "server.js",
   
   "scripts": {
-    // The 'start' script is the entry point for production servers like Render."
+    // EXPLAIN TO TEACHER: "The 'start' script is the entry point for production servers like Render."
     "start": "node server.js",
-    // The 'dev' script uses Nodemon for local development, automatically restarting the server when I save a file."
+    // EXPLAIN TO TEACHER: "The 'dev' script uses Nodemon for local development, automatically restarting the server when I save a file."
     "dev": "nodemon server.js"
   },
   
