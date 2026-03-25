@@ -26,13 +26,12 @@ let currentEventPrice = 0;
 let allEvents = []; 
 
 // ==========================================
-// 🔴 NEW: WEBSOCKET REAL-TIME LISTENER
+// 🔴 WEBSOCKET REAL-TIME LISTENER
 // ==========================================
 const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
     socket.on('seatUpdate', async (data) => {
-        // Only update if the user is currently looking at the exact event that changed
         if (currentEventId === data.eventId) {
             if (!seatedView.classList.contains('d-none')) {
                 await softUpdateSeats(currentEventId);
@@ -44,10 +43,10 @@ if (socket) {
 }
 
 // "Soft Update" changes seat colors live without refreshing the whole map 
-// or clearing out seats the user has currently clicked (in green).
 async function softUpdateSeats(eventId) {
     try {
-        const res = await fetch(`/api/seats/${eventId}`);
+        // FIXED: Added cache: 'no-store' to bypass aggressive mobile caching
+        const res = await fetch(`/api/seats/${eventId}`, { cache: 'no-store' });
         const dbSeats = await res.json();
         let changed = false;
 
@@ -58,18 +57,17 @@ async function softUpdateSeats(eventId) {
                 const isDbBooked = seat.status === 'Booked';
 
                 if (isDbBooked && !isCurrentlyBooked) {
-                    // Someone else just booked this seat! Turn it grey instantly.
+                    // Turn it grey instantly and remove 'selected' if it was green
                     seatBtn.className = 'bms-seat booked disabled';
                     changed = true;
                 } else if (!isDbBooked && isCurrentlyBooked) {
-                    // Someone just cancelled! Turn it back to white.
+                    // Turn it back to white.
                     seatBtn.className = 'bms-seat available';
                     changed = true;
                 }
             }
         });
 
-        // If a seat we had selected was taken, recalculate our math
         if (changed) {
             const selectedCount = document.querySelectorAll('.bms-seat.selected').length;
             document.getElementById('book-seats-btn').disabled = selectedCount === 0;
@@ -82,7 +80,8 @@ async function softUpdateSeats(eventId) {
 
 async function softUpdateGeneral(eventId) {
     try {
-        const res = await fetch('/api/events');
+        // FIXED: Added cache: 'no-store'
+        const res = await fetch('/api/events', { cache: 'no-store' });
         const events = await res.json();
         const currentEvent = events.find(e => e._id === eventId);
         
@@ -185,7 +184,8 @@ function showBookingScreen(username, isAdmin = false) {
 
 async function renderEvents() {
     try {
-        const res = await fetch('/api/events');
+        // FIXED: Added cache: 'no-store'
+        const res = await fetch('/api/events', { cache: 'no-store' });
         allEvents = await res.json();
         displayEvents(allEvents);
     } catch (err) {
@@ -258,7 +258,8 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
         if (requiredAge > 0) {
-            const res = await fetch('/api/profile');
+            // FIXED: Added cache: 'no-store'
+            const res = await fetch('/api/profile', { cache: 'no-store' });
             const data = await res.json();
             
             if (!data.user.dob) {
@@ -300,7 +301,8 @@ document.getElementById('events-container').addEventListener('click', async (e) 
 async function renderSeatsForEvent(eventId) {
     try {
         seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout...</p>';
-        const res = await fetch(`/api/seats/${eventId}`);
+        // FIXED: Added cache: 'no-store' to ensure we never load a cached "Ghost" seat map
+        const res = await fetch(`/api/seats/${eventId}`, { cache: 'no-store' });
         let seats = await res.json();
         
         seats.sort((a, b) => {
@@ -360,9 +362,16 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
-document.getElementById('book-seats-btn').addEventListener('click', async () => {
+// --- FIXED: BULLETPROOF BUTTON LOGIC ---
+document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0) return;
+
+    // Show processing state so the user knows it's doing something
+    const btn = e.target;
+    const originalText = btn.innerText;
+    btn.innerText = 'Processing...';
+    btn.disabled = true;
 
     try {
         const res = await fetch('/api/events/book-seats', {
@@ -376,25 +385,37 @@ document.getElementById('book-seats-btn').addEventListener('click', async () => 
             alert(data.message);
             renderEvents(); 
             document.getElementById('seated-total').innerText = '0'; 
-            // The softUpdate will handle turning the seats grey instantly!
+            // Force a full, hard refresh of the local seat map to guarantee it turns grey locally
+            await renderSeatsForEvent(currentEventId);
         } else {
             alert(data.message);
-            // If we hit a race condition, force a fast soft-update so the user sees the grey seat
-            softUpdateSeats(currentEventId);
+            // If it failed (e.g. race condition), soft update to reveal the grey seats
+            await softUpdateSeats(currentEventId);
         }
     } catch (err) {
-        alert("Booking failed.");
+        alert("Booking failed. Please check your internet connection.");
+    } finally {
+        // Restore button state
+        btn.innerText = originalText;
+        const newSelectedCount = document.querySelectorAll('.bms-seat.selected').length;
+        btn.disabled = newSelectedCount === 0;
     }
 });
 
-document.getElementById('book-general-btn').addEventListener('click', async () => {
-    const qty = parseInt(document.getElementById('general-qty').value);
+document.getElementById('book-general-btn').addEventListener('click', async (e) => {
+    const qtyInput = document.getElementById('general-qty');
+    const qty = parseInt(qtyInput.value);
+    const max = parseInt(qtyInput.max);
     
-    const max = parseInt(document.getElementById('general-qty').max);
     if (qty > max) {
         alert("You cannot book more than the available tickets!");
         return;
     }
+
+    const btn = e.target;
+    const originalText = btn.innerText;
+    btn.innerText = 'Processing...';
+    btn.disabled = true;
 
     try {
         const res = await fetch('/api/events/book-general', {
@@ -407,19 +428,23 @@ document.getElementById('book-general-btn').addEventListener('click', async () =
         if (data.success) {
             alert(data.message);
             renderEvents(); 
-            // Soft update via socket will handle updating the remaining tickets instantly!
+            await softUpdateGeneral(currentEventId); // Force fresh ticket count
         } else {
             alert(data.message);
-            softUpdateGeneral(currentEventId);
+            await softUpdateGeneral(currentEventId);
         }
     } catch (err) {
         alert("Booking failed.");
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
     }
 });
 
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        const res = await fetch('/api/check-session');
+        // FIXED: Added cache: 'no-store'
+        const res = await fetch('/api/check-session', { cache: 'no-store' });
         const data = await res.json();
         
         if (initialLoader) initialLoader.classList.add('d-none');
@@ -446,7 +471,8 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
     container.innerHTML = '<p class="text-center text-muted">Loading your tickets...</p>';
 
     try {
-        const res = await fetch('/api/my-tickets');
+        // FIXED: Added cache: 'no-store'
+        const res = await fetch('/api/my-tickets', { cache: 'no-store' });
         const tickets = await res.json();
 
         if (tickets.length === 0) {
@@ -557,7 +583,8 @@ document.getElementById('profile-link').addEventListener('click', async (e) => {
     actionSection.classList.add('d-none');
     
     try {
-        const res = await fetch('/api/profile');
+        // FIXED: Added cache: 'no-store'
+        const res = await fetch('/api/profile', { cache: 'no-store' });
         const data = await res.json();
         if (data.success) {
             document.getElementById('profile-username').value = data.user.username;
