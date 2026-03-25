@@ -17,6 +17,23 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // 🎬 MAGIC DOM MUTATION: Transform the Age Input into a CBFC Dropdown safely!
+    const ageInput = document.getElementById('event-age');
+    if (ageInput && ageInput.tagName === 'INPUT') {
+        const selectAge = document.createElement('select');
+        selectAge.id = 'event-age';
+        selectAge.className = 'form-select';
+        selectAge.innerHTML = `
+            <option value="0">U (Unrestricted / All Ages)</option>
+            <option value="7">UA 7+ (Parental Guidance Advised)</option>
+            <option value="13">UA 13+ (Parental Guidance Advised)</option>
+            <option value="16">UA 16+ (Parental Guidance Advised)</option>
+            <option value="18">A (Adults Only 18+)</option>
+            <option value="99">S (Specialized Audience)</option>
+        `;
+        ageInput.parentNode.replaceChild(selectAge, ageInput);
+    }
+
     loadAnalytics();
     loadEvents();
     loadUsers();
@@ -84,12 +101,21 @@ async function loadEvents() {
         tbody.innerHTML = events.map(e => {
             const imgPreview = e.imageUrl ? `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px;">` : `<div style="width: 50px; height: 50px; background: #334155; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
             
+            // Generate Admin Badges for CBFC
+            let ratingBadge = '';
+            if(e.ageLimit === 0) ratingBadge = `<span class="badge bg-success ms-2">U</span>`;
+            else if(e.ageLimit === 7) ratingBadge = `<span class="badge bg-info text-dark ms-2">UA 7+</span>`;
+            else if(e.ageLimit === 13) ratingBadge = `<span class="badge bg-warning text-dark ms-2">UA 13+</span>`;
+            else if(e.ageLimit === 16) ratingBadge = `<span class="badge bg-warning text-dark ms-2">UA 16+</span>`;
+            else if(e.ageLimit === 18) ratingBadge = `<span class="badge bg-danger ms-2">A</span>`;
+            else if(e.ageLimit === 99) ratingBadge = `<span class="badge bg-dark ms-2">S</span>`;
+
             return `
             <tr>
                 <td class="fw-bold">
                     <div class="d-flex align-items-center">
                         ${imgPreview}
-                        <div>${e.title}</div>
+                        <div>${e.title} ${ratingBadge}</div>
                     </div>
                 </td>
                 <td>
@@ -143,13 +169,12 @@ eventForm.addEventListener('submit', async (e) => {
     const eventId = eventIdInput.value;
     const isEditing = !!eventId; 
 
-    // FIXED: Convert local time to standard UTC ISO String before sending to server
     const startInput = document.getElementById('event-start').value;
     const endInput = document.getElementById('event-end').value;
 
     const payload = {
         title: document.getElementById('event-title').value,
-        ageLimit: parseInt(document.getElementById('event-age').value),
+        ageLimit: parseInt(document.getElementById('event-age').value), // Captures the dropdown value automatically
         eventType: document.getElementById('event-type').value,
         capacity: parseInt(document.getElementById('event-capacity').value),
         price: Number(document.getElementById('event-price').value),
@@ -204,7 +229,7 @@ window.deleteEvent = async function(id) {
 window.editEvent = function(eventData) {
     eventIdInput.value = eventData._id;
     document.getElementById('event-title').value = eventData.title;
-    document.getElementById('event-age').value = eventData.ageLimit;
+    document.getElementById('event-age').value = eventData.ageLimit || 0;
     document.getElementById('event-type').value = eventData.eventType;
     document.getElementById('event-capacity').value = eventData.capacity;
     document.getElementById('event-price').value = eventData.price || 0;
@@ -226,7 +251,6 @@ window.editEvent = function(eventData) {
     eventForm.scrollIntoView({ behavior: 'smooth' });
 }
 
-// FIXED: Safely read the ISO string from the server and display it in the user's local timezone
 function formatForDateTimeLocal(isoString) {
     if (!isoString) return '';
     const d = new Date(isoString);
