@@ -18,12 +18,88 @@ const generalView = document.getElementById('general-view');
 const seatMap = document.getElementById('seat-map');
 const searchBar = document.getElementById('event-search-bar'); 
 const homeLogo = document.getElementById('home-logo'); 
-const initialLoader = document.getElementById('initial-loader'); // NEW: Caching the loader element
+const initialLoader = document.getElementById('initial-loader'); 
 
 let isLoginMode = true;
 let currentEventId = null;
 let currentEventPrice = 0; 
 let allEvents = []; 
+
+// ==========================================
+// 🔴 NEW: WEBSOCKET REAL-TIME LISTENER
+// ==========================================
+const socket = typeof io !== 'undefined' ? io() : null;
+
+if (socket) {
+    socket.on('seatUpdate', async (data) => {
+        // Only update if the user is currently looking at the exact event that changed
+        if (currentEventId === data.eventId) {
+            if (!seatedView.classList.contains('d-none')) {
+                await softUpdateSeats(currentEventId);
+            } else if (!generalView.classList.contains('d-none')) {
+                await softUpdateGeneral(currentEventId);
+            }
+        }
+    });
+}
+
+// "Soft Update" changes seat colors live without refreshing the whole map 
+// or clearing out seats the user has currently clicked (in green).
+async function softUpdateSeats(eventId) {
+    try {
+        const res = await fetch(`/api/seats/${eventId}`);
+        const dbSeats = await res.json();
+        let changed = false;
+
+        dbSeats.forEach(seat => {
+            const seatBtn = document.querySelector(`.bms-seat[data-id="${seat.seatId}"]`);
+            if (seatBtn) {
+                const isCurrentlyBooked = seatBtn.classList.contains('booked');
+                const isDbBooked = seat.status === 'Booked';
+
+                if (isDbBooked && !isCurrentlyBooked) {
+                    // Someone else just booked this seat! Turn it grey instantly.
+                    seatBtn.className = 'bms-seat booked disabled';
+                    changed = true;
+                } else if (!isDbBooked && isCurrentlyBooked) {
+                    // Someone just cancelled! Turn it back to white.
+                    seatBtn.className = 'bms-seat available';
+                    changed = true;
+                }
+            }
+        });
+
+        // If a seat we had selected was taken, recalculate our math
+        if (changed) {
+            const selectedCount = document.querySelectorAll('.bms-seat.selected').length;
+            document.getElementById('book-seats-btn').disabled = selectedCount === 0;
+            document.getElementById('seated-total').innerText = (selectedCount * currentEventPrice);
+        }
+    } catch (err) {
+        console.error("Error live-updating seats.");
+    }
+}
+
+async function softUpdateGeneral(eventId) {
+    try {
+        const res = await fetch('/api/events');
+        const events = await res.json();
+        const currentEvent = events.find(e => e._id === eventId);
+        
+        if (currentEvent) {
+            const available = currentEvent.capacity - currentEvent.ticketsSold;
+            document.getElementById('tickets-left').innerText = available;
+            
+            const qtyInput = document.getElementById('general-qty');
+            qtyInput.max = available;
+            if (parseInt(qtyInput.value) > available) {
+                qtyInput.value = available > 0 ? available : 1;
+            }
+            document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice) || 0;
+        }
+    } catch(err) {}
+}
+
 
 if (homeLogo) {
     homeLogo.addEventListener('click', (e) => {
@@ -129,7 +205,6 @@ if (searchBar) {
     });
 }
 
-// --- DYNAMIC RENDERING ---
 function displayEvents(events) {
     const container = document.getElementById('events-container');
 
@@ -172,7 +247,6 @@ function displayEvents(events) {
     `}).join('');
 }
 
-// --- EVENT DELEGATION ---
 document.getElementById('events-container').addEventListener('click', async (e) => {
     if (e.target.classList.contains('select-event-btn')) {
         const eventId = e.target.getAttribute('data-id');
@@ -183,7 +257,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
-        // Conditional Age Verification Logic
         if (requiredAge > 0) {
             const res = await fetch('/api/profile');
             const data = await res.json();
@@ -224,14 +297,12 @@ document.getElementById('events-container').addEventListener('click', async (e) 
     }
 });
 
-// --- DYNAMIC MATRIX GENERATION (SEAT MAP) ---
 async function renderSeatsForEvent(eventId) {
     try {
         seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout...</p>';
         const res = await fetch(`/api/seats/${eventId}`);
         let seats = await res.json();
         
-        // Sort seats numerically using Regex
         seats.sort((a, b) => {
             let numA = parseInt(a.seatId.replace(/\D/g, ''));
             let numB = parseInt(b.seatId.replace(/\D/g, ''));
@@ -242,7 +313,6 @@ async function renderSeatsForEvent(eventId) {
         const halfRow = seatsPerRow / 2;
         let html = '<div class="d-flex flex-column align-items-center">';
 
-        // Loop through the array in chunks to create Rows
         for (let i = 0; i < seats.length; i += seatsPerRow) {
             const rowSeats = seats.slice(i, i + seatsPerRow);
             const rowLetter = String.fromCharCode(65 + Math.floor(i / seatsPerRow)); 
@@ -290,11 +360,6 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
-document.getElementById('general-qty').addEventListener('input', (e) => {
-    const qty = parseInt(e.target.value) || 0;
-    document.getElementById('general-total').innerText = (qty * currentEventPrice);
-});
-
 document.getElementById('book-seats-btn').addEventListener('click', async () => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0) return;
@@ -306,12 +371,16 @@ document.getElementById('book-seats-btn').addEventListener('click', async () => 
             body: JSON.stringify({ eventId: currentEventId, seats: selectedSeats })
         });
         const data = await res.json();
-        alert(data.message);
         
         if (data.success) {
+            alert(data.message);
             renderEvents(); 
             document.getElementById('seated-total').innerText = '0'; 
-            renderSeatsForEvent(currentEventId);
+            // The softUpdate will handle turning the seats grey instantly!
+        } else {
+            alert(data.message);
+            // If we hit a race condition, force a fast soft-update so the user sees the grey seat
+            softUpdateSeats(currentEventId);
         }
     } catch (err) {
         alert("Booking failed.");
@@ -334,39 +403,33 @@ document.getElementById('book-general-btn').addEventListener('click', async () =
             body: JSON.stringify({ eventId: currentEventId, qty: qty })
         });
         const data = await res.json();
-        alert(data.message);
         
         if (data.success) {
+            alert(data.message);
             renderEvents(); 
-            const currentLeft = parseInt(document.getElementById('tickets-left').innerText);
-            document.getElementById('tickets-left').innerText = currentLeft - qty;
-            document.getElementById('general-qty').max = currentLeft - qty;
-            document.getElementById('general-qty').value = 1;
-            document.getElementById('general-total').innerText = currentEventPrice; 
+            // Soft update via socket will handle updating the remaining tickets instantly!
+        } else {
+            alert(data.message);
+            softUpdateGeneral(currentEventId);
         }
     } catch (err) {
         alert("Booking failed.");
     }
 });
 
-// --- NEW: ROBUST SESSION CHECK WITH LOADER ---
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const res = await fetch('/api/check-session');
         const data = await res.json();
         
-        // Hide the loader once we hear back from the server
         if (initialLoader) initialLoader.classList.add('d-none');
         
         if (data.loggedIn) {
-            // If logged in, go straight to the dashboard
             showBookingScreen(data.username, data.isAdmin);
         } else {
-            // If NOT logged in, officially reveal the login form
             if (authSection) authSection.classList.remove('d-none');
         }
     } catch (err) {
-        // Fallback: If network error occurs, show the login form safely
         if (initialLoader) initialLoader.classList.add('d-none');
         if (authSection) authSection.classList.remove('d-none');
     }
