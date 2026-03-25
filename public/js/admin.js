@@ -1,5 +1,4 @@
-// public/js/admin.js
-
+// Caching elements
 const eventForm = document.getElementById('event-form');
 const eventIdInput = document.getElementById('event-id');
 const formTitle = document.getElementById('form-title');
@@ -11,13 +10,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch('/api/check-session');
     const data = await res.json();
     
+    // Client-side guard: Boot them to login if they bypassed the UI without an Admin session
     if (!data.loggedIn || !data.isAdmin) {
         alert("Access Denied. Please log in as an Admin.");
         window.location.href = 'admin-login.html';
         return;
     }
 
-    // 🎬 MAGIC DOM MUTATION: Transform the Age Input into a CBFC Dropdown safely!
+    // 🎬 DOM MUTATION: Swaps a plain text box for a strict Dropdown mapping to CBFC codes
     const ageInput = document.getElementById('event-age');
     if (ageInput && ageInput.tagName === 'INPUT') {
         const selectAge = document.createElement('select');
@@ -39,7 +39,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
 });
 
-// --- ANALYTICS DASHBOARD ---
+// --- ANALYTICS ENGINE ---
 async function loadAnalytics() {
     try {
         const res = await fetch('/api/admin/analytics');
@@ -56,6 +56,7 @@ async function loadAnalytics() {
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No events found.</td></tr>';
             } else {
                 tbody.innerHTML = data.eventStats.map(e => {
+                    // Calculates ratio, preventing NaN/Infinity errors if capacity is 0
                     const percent = e.capacity > 0 ? Math.round((e.ticketsSold / e.capacity) * 100) : 0;
                     
                     let barColor = 'bg-success';
@@ -86,7 +87,7 @@ async function loadAnalytics() {
     }
 }
 
-// --- DATA FETCHING (EVENTS & USERS) ---
+// --- DATA FETCHING ---
 async function loadEvents() {
     try {
         const res = await fetch('/api/admin/events');
@@ -101,7 +102,7 @@ async function loadEvents() {
         tbody.innerHTML = events.map(e => {
             const imgPreview = e.imageUrl ? `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px;">` : `<div style="width: 50px; height: 50px; background: #334155; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
             
-            // Generate Admin Badges for CBFC
+            // Translates raw Database ints back into nice admin UI tags
             let ratingBadge = '';
             if(e.ageLimit === 0) ratingBadge = `<span class="badge bg-success ms-2">U</span>`;
             else if(e.ageLimit === 7) ratingBadge = `<span class="badge bg-info text-dark ms-2">UA 7+</span>`;
@@ -167,17 +168,18 @@ eventForm.addEventListener('submit', async (e) => {
     e.preventDefault(); 
 
     const eventId = eventIdInput.value;
-    const isEditing = !!eventId; 
+    const isEditing = !!eventId; // Coerces the string ID into a Boolean true/false
 
     const startInput = document.getElementById('event-start').value;
     const endInput = document.getElementById('event-end').value;
 
     const payload = {
         title: document.getElementById('event-title').value,
-        ageLimit: parseInt(document.getElementById('event-age').value), // Captures the dropdown value automatically
+        ageLimit: parseInt(document.getElementById('event-age').value), 
         eventType: document.getElementById('event-type').value,
         capacity: parseInt(document.getElementById('event-capacity').value),
         price: Number(document.getElementById('event-price').value),
+        // Translates local time to Global Standard (ISO) before saving
         startDate: startInput ? new Date(startInput).toISOString() : null,
         endDate: endInput ? new Date(endInput).toISOString() : null,
         location: document.getElementById('event-location').value,
@@ -251,6 +253,7 @@ window.editEvent = function(eventData) {
     eventForm.scrollIntoView({ behavior: 'smooth' });
 }
 
+// THE TIMEZONE FIX: Extracts the raw time and subtracts the exact offset of the user's specific country
 function formatForDateTimeLocal(isoString) {
     if (!isoString) return '';
     const d = new Date(isoString);
