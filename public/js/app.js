@@ -57,10 +57,7 @@ function handlePossibleForceLogout(data) {
     return false;
 }
 
-// ==========================================
 // ⏱️ THE FRONTEND HEARTBEAT (Auto-Expiration)
-// ==========================================
-// This checks the clock every 10 seconds to shut down expired events live
 function checkEventExpirations() {
     const now = new Date();
 
@@ -68,27 +65,22 @@ function checkEventExpirations() {
         const isExpired = now > new Date(e.endDate);
         const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
 
-        // If the event just expired and the button hasn't been disabled yet...
         if (isExpired && btn && !btn.disabled) {
-            // Instantly lock the button on the home screen
             btn.disabled = true;
             btn.innerText = 'Event Ended';
             btn.classList.replace('btn-outline-primary', 'btn-secondary');
 
-            // If the user is currently inside the booking screen for this exact event, kick them out!
             if (currentEventId === String(e._id)) {
                 alert("⏳ Time's up! This event has officially ended and is no longer accepting bookings.");
-                homeLogo.click(); // Send them back to the main menu safely
+                homeLogo.click(); 
             }
         }
     });
 }
 
-// Start the heartbeat! (Runs every 10,000 milliseconds)
 setInterval(checkEventExpirations, 10000);
 
-
-// 🌍 GLOBAL EVENT REFRESHER
+// 🌍 GLOBAL EVENT REFRESHER 
 async function refreshGlobalEvents() {
     try {
         const timestamp = new Date().getTime();
@@ -98,7 +90,7 @@ async function refreshGlobalEvents() {
 
         freshEvents.forEach(e => {
             const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
-            if (btn && !btn.disabled) { // Only update capacity if it hasn't expired
+            if (btn && !btn.disabled) { 
                 btn.setAttribute('data-available', e.capacity - e.ticketsSold);
             }
         });
@@ -112,7 +104,7 @@ async function refreshGlobalEvents() {
                 if (parseInt(ticketsLeftEl.innerText) !== available) {
                     ticketsLeftEl.innerText = available;
                     ticketsLeftEl.style.transition = 'color 0.3s ease';
-                    ticketsLeftEl.style.color = '#10b981'; // Flash Green!
+                    ticketsLeftEl.style.color = '#10b981'; 
                     setTimeout(() => ticketsLeftEl.style.color = '', 1000);
                 }
 
@@ -125,7 +117,6 @@ async function refreshGlobalEvents() {
             }
         }
         
-        // Immediately run the clock check after syncing data
         checkEventExpirations();
         
     } catch(err) {
@@ -269,6 +260,17 @@ if (searchBar) {
     });
 }
 
+// 🎬 RATING BADGE GENERATOR
+function getRatingBadge(age) {
+    if (age === 0) return `<span class="badge bg-success ms-2">U</span>`;
+    if (age === 7) return `<span class="badge bg-info text-dark ms-2">UA 7+</span>`;
+    if (age === 13) return `<span class="badge bg-warning text-dark ms-2">UA 13+</span>`;
+    if (age === 16) return `<span class="badge bg-warning text-dark ms-2">UA 16+</span>`;
+    if (age === 18) return `<span class="badge bg-danger ms-2">A</span>`;
+    if (age === 99) return `<span class="badge bg-dark ms-2">S</span>`;
+    return '';
+}
+
 function displayEvents(events) {
     const container = document.getElementById('events-container');
 
@@ -281,9 +283,10 @@ function displayEvents(events) {
 
     container.innerHTML = events.map(e => {
         const priceText = `<span class="badge bg-success ms-2 fs-6">₹${e.price || 0}</span>`; 
+        const ratingBadge = getRatingBadge(e.ageLimit); // NEW: Get the CBFC Badge!
+        
         const imgHtml = e.imageUrl ? `<img src="${e.imageUrl}" class="event-card-img" alt="${e.title}">` : '';
         
-        // Check if the event is ALREADY expired when first rendering the page
         const isExpired = now > new Date(e.endDate);
         const btnHtml = isExpired 
             ? `<button class="btn btn-secondary w-100 fw-bold mt-auto select-event-btn py-2" disabled data-id="${e._id}">Event Ended</button>`
@@ -301,7 +304,7 @@ function displayEvents(events) {
                 ${imgHtml} 
                 <div class="card-body d-flex flex-column p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h4 class="card-title fw-bold text-dark mb-0">${e.title} ${priceText}</h4>
+                        <h4 class="card-title fw-bold text-dark mb-0">${e.title} ${priceText} ${ratingBadge}</h4> 
                     </div>
                     <p class="card-text text-muted mb-3 fs-6">📍 <span class="fw-medium">${e.location}</span></p>
                     
@@ -329,7 +332,11 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         const availableTickets = parseInt(e.target.getAttribute('data-available'));
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
-        if (requiredAge > 0) {
+        // 🛡️ NEW CBFC SECURITY LOGIC
+        if (requiredAge === 99) {
+            alert(`⚠️ Specialized Audience (S)\n\nThis event is restricted to specific professionals (e.g., doctors, scientists). Relevant ID/credentials will be required at the venue.`);
+            // Proceeds to booking after warning.
+        } else if (requiredAge > 0) {
             const timestamp = new Date().getTime();
             const res = await fetch(`/api/profile?t=${timestamp}`);
             const data = await res.json();
@@ -343,9 +350,17 @@ document.getElementById('events-container').addEventListener('click', async (e) 
             }
             
             const userAge = calculateAge(data.user.dob);
+            
             if (userAge < requiredAge) {
-                alert(`🛑 Access Denied!\n\nYou are ${userAge} years old. This event strictly requires you to be at least ${requiredAge} years old.`);
-                return;
+                if (requiredAge === 18) {
+                    // Strict Block for Adult Films
+                    alert(`🛑 Access Denied!\n\nYou are ${userAge} years old. This is an 'A' rated event strictly for adults (18+).`);
+                    return;
+                } else {
+                    // Soft Warning for Parental Guidance (UA 7+, 13+, 16+)
+                    const proceed = confirm(`⚠️ Parental Guidance Advised\n\nYou are ${userAge} years old. This event is rated UA ${requiredAge}+. \n\nDo you have parental permission to book this event?`);
+                    if (!proceed) return;
+                }
             }
         }
 
