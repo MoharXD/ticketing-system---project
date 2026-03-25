@@ -6,9 +6,9 @@ const eventSchema = new mongoose.Schema({
     endDate: { type: Date, required: true },
     location: { type: String, required: true },
     description: { type: String, default: '' },
-    ageLimit: { type: Number, default: 0 },
+    ageLimit: { type: Number, default: 0 }, // Used for the CBFC rating system (0=U, 18=A, etc)
     
-    // 'enum' restricts the value to only the specific strings provided in the array.
+    // 'enum' acts as a strict validator. The eventType MUST be exactly 'Seated' or 'General'.
     eventType: { type: String, enum: ['Seated', 'General'], required: true },
     
     capacity: { type: Number, required: true },
@@ -16,7 +16,7 @@ const eventSchema = new mongoose.Schema({
     imageUrl: { type: String, default: '' }, 
     ticketsSold: { type: Number, default: 0 }, 
     
-    // Automatically stamps when the event was created in the DB
+    // Automatically stamps the exact millisecond the event was created
     createdAt: { type: Date, default: Date.now }
 });
 
