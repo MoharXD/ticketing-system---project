@@ -26,48 +26,26 @@ let currentEventPrice = 0;
 let allEvents = []; 
 
 // ==========================================
-// 🔴 GLOBAL WEBSOCKET LISTENER
+// 🔴 THE MASTER LIVE SYNC ENGINE
 // ==========================================
 const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
     socket.on('seatUpdate', async (data) => {
-        if (currentEventId === data.eventId) {
+        if (String(currentEventId) === String(data.eventId)) {
             if (!seatedView.classList.contains('d-none')) {
                 await softUpdateSeats(currentEventId);
-            } else if (!generalView.classList.contains('d-none')) {
-                await softUpdateGeneral(currentEventId);
             }
         }
     });
 
-    // NEW: Listens for ANY event changes globally and quietly updates the home screen UI
+    // Listens for ANY event changes globally and quietly updates everything
     socket.on('eventUpdate', async () => {
-        try {
-            const res = await fetch('/api/events', { cache: 'no-store' });
-            const freshEvents = await res.json();
-            allEvents = freshEvents; 
-            
-            // Quietly update the ticket counts on the main screen cards without breaking scrolling
-            freshEvents.forEach(e => {
-                const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
-                if (btn) {
-                    btn.setAttribute('data-available', e.capacity - e.ticketsSold);
-                }
-            });
-
-            // If user is looking at GA, update it instantly
-            if (currentEventId && !generalView.classList.contains('d-none')) {
-                softUpdateGeneral(currentEventId);
-            }
-        } catch(err) {}
+        await refreshGlobalEvents();
     });
 }
 
-// ==========================================
 // 👻 GHOST USER CATCHER
-// ==========================================
-// Checks if the server forced a logout because the admin deleted the account
 function handlePossibleForceLogout(data) {
     if (data.forceLogout) {
         alert("🚨 Session Terminated: " + data.message);
@@ -77,7 +55,51 @@ function handlePossibleForceLogout(data) {
     return false;
 }
 
-// "Soft Update" changes seat colors live without refreshing the whole map 
+// 🌍 GLOBAL EVENT REFRESHER (Updates GA & Home Page silently)
+async function refreshGlobalEvents() {
+    try {
+        const res = await fetch('/api/events', { cache: 'no-store' });
+        const freshEvents = await res.json();
+        allEvents = freshEvents; 
+
+        // 1. Quietly update the hidden ticket counts on the main home screen cards
+        freshEvents.forEach(e => {
+            const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
+            if (btn) {
+                btn.setAttribute('data-available', e.capacity - e.ticketsSold);
+            }
+        });
+
+        // 2. If user is currently looking at a General Admission page, update it instantly!
+        if (currentEventId && !generalView.classList.contains('d-none')) {
+            const currentEvent = freshEvents.find(e => e._id === currentEventId);
+            if (currentEvent) {
+                const available = currentEvent.capacity - currentEvent.ticketsSold;
+                const ticketsLeftEl = document.getElementById('tickets-left');
+
+                // Visual flash to prove it updated live!
+                if (parseInt(ticketsLeftEl.innerText) !== available) {
+                    ticketsLeftEl.innerText = available;
+                    ticketsLeftEl.style.transition = 'color 0.3s ease';
+                    ticketsLeftEl.style.color = '#10b981'; // Flash Green!
+                    setTimeout(() => ticketsLeftEl.style.color = '', 1000);
+                }
+
+                // Adjust the quantity input dynamically so they can't book more than exist
+                const qtyInput = document.getElementById('general-qty');
+                qtyInput.max = available;
+                if (parseInt(qtyInput.value) > available) {
+                    qtyInput.value = available > 0 ? available : 1;
+                    document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice) || 0;
+                }
+            }
+        }
+    } catch(err) {
+        console.error("Live sync failed", err);
+    }
+}
+
+// 🪑 SOFT UPDATE FOR SEATS (Turns seats grey instantly)
 async function softUpdateSeats(eventId) {
     try {
         const res = await fetch(`/api/seats/${eventId}`, { cache: 'no-store' });
@@ -108,26 +130,6 @@ async function softUpdateSeats(eventId) {
     } catch (err) {
         console.error("Error live-updating seats.");
     }
-}
-
-async function softUpdateGeneral(eventId) {
-    try {
-        const res = await fetch('/api/events', { cache: 'no-store' });
-        const events = await res.json();
-        const currentEvent = events.find(e => e._id === eventId);
-        
-        if (currentEvent) {
-            const available = currentEvent.capacity - currentEvent.ticketsSold;
-            document.getElementById('tickets-left').innerText = available;
-            
-            const qtyInput = document.getElementById('general-qty');
-            qtyInput.max = available;
-            if (parseInt(qtyInput.value) > available) {
-                qtyInput.value = available > 0 ? available : 1;
-            }
-            document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice) || 0;
-        }
-    } catch(err) {}
 }
 
 
@@ -215,8 +217,8 @@ function showBookingScreen(username, isAdmin = false) {
 
 async function renderEvents() {
     try {
-        const res = await fetch('/api/events', { cache: 'no-store' });
-        allEvents = await res.json();
+        // Use the global fetcher so we don't have redundant API calls
+        await refreshGlobalEvents();
         displayEvents(allEvents);
     } catch (err) {
         console.error("Error loading events:", err);
@@ -286,7 +288,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         
         // Use the dynamically updated available count from the button attributes
         const availableTickets = parseInt(e.target.getAttribute('data-available'));
-        
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
         if (requiredAge > 0) {
@@ -394,6 +395,9 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
+// ==========================================
+// 🛒 NON-BLOCKING CHECKOUT BUTTONS
+// ==========================================
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0) return;
@@ -410,23 +414,23 @@ document.getElementById('book-seats-btn').addEventListener('click', async (e) =>
             body: JSON.stringify({ eventId: currentEventId, seats: selectedSeats })
         });
         const data = await res.json();
-        
         if (handlePossibleForceLogout(data)) return;
 
         if (data.success) {
-            alert(data.message);
             document.getElementById('seated-total').innerText = '0'; 
             await renderSeatsForEvent(currentEventId);
+            
+            // FIXED: Wait 10ms for DOM to paint BEFORE freezing browser with alert!
+            setTimeout(() => alert(data.message), 10);
         } else {
-            alert(data.message);
             await softUpdateSeats(currentEventId);
+            setTimeout(() => alert(data.message), 10);
         }
     } catch (err) {
         alert("Booking failed. Please check your internet connection.");
     } finally {
         btn.innerText = originalText;
-        const newSelectedCount = document.querySelectorAll('.bms-seat.selected').length;
-        btn.disabled = newSelectedCount === 0;
+        btn.disabled = document.querySelectorAll('.bms-seat.selected').length === 0;
     }
 });
 
@@ -456,11 +460,18 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
         if (handlePossibleForceLogout(data)) return;
 
         if (data.success) {
-            alert(data.message);
-            await softUpdateGeneral(currentEventId); 
+            // Reset the form for the buyer instantly
+            qtyInput.value = 1;
+            document.getElementById('general-total').innerText = currentEventPrice;
+            
+            // Sync with DB
+            await refreshGlobalEvents(); 
+            
+            // FIXED: Wait 10ms for DOM to paint the new number BEFORE freezing browser with alert!
+            setTimeout(() => alert(data.message), 10);
         } else {
-            alert(data.message);
-            await softUpdateGeneral(currentEventId);
+            await refreshGlobalEvents();
+            setTimeout(() => alert(data.message), 10);
         }
     } catch (err) {
         alert("Booking failed.");
