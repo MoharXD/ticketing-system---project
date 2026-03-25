@@ -1,6 +1,5 @@
 // public/js/admin.js
 
-// DOM Elements cached in variables for performance
 const eventForm = document.getElementById('event-form');
 const eventIdInput = document.getElementById('event-id');
 const formTitle = document.getElementById('form-title');
@@ -8,19 +7,16 @@ const submitBtn = document.getElementById('event-submit-btn');
 const cancelBtn = document.getElementById('event-cancel-btn');
 
 // --- INITIALIZATION & SECURITY CHECK ---
-// When the DOM is fully loaded, immediately verify if the user is an Admin
 window.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch('/api/check-session');
     const data = await res.json();
     
-    // Client-side route protection: If not logged in or not an admin, redirect them.
     if (!data.loggedIn || !data.isAdmin) {
         alert("Access Denied. Please log in as an Admin.");
         window.location.href = 'admin-login.html';
         return;
     }
 
-    // Load dashboard data concurrently
     loadAnalytics();
     loadEvents();
     loadUsers();
@@ -33,23 +29,18 @@ async function loadAnalytics() {
         const data = await res.json();
         
         if(data.success) {
-            // Populate top-level aggregate statistics
             document.getElementById('stat-revenue').innerText = data.totalRevenue.toLocaleString();
             document.getElementById('stat-tickets').innerText = data.totalTicketsSold.toLocaleString();
             document.getElementById('stat-events').innerText = data.totalEvents.toLocaleString();
             document.getElementById('stat-users').innerText = data.totalUsers.toLocaleString();
 
-            // Populate the Per-Event Analytics Table dynamically
             const tbody = document.getElementById('analytics-table-body');
             if (data.eventStats.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No events found.</td></tr>';
             } else {
-                // Map through the event statistics and calculate dynamic progress bars
                 tbody.innerHTML = data.eventStats.map(e => {
-                    // Calculate occupancy percentage, avoiding division by zero
                     const percent = e.capacity > 0 ? Math.round((e.ticketsSold / e.capacity) * 100) : 0;
                     
-                    // Dynamic styling logic based on sales performance
                     let barColor = 'bg-success';
                     if (percent < 30) barColor = 'bg-danger';
                     else if (percent < 70) barColor = 'bg-warning';
@@ -79,7 +70,6 @@ async function loadAnalytics() {
 }
 
 // --- DATA FETCHING (EVENTS & USERS) ---
-// These functions fetch JSON arrays from our Express REST API and inject them as HTML rows
 async function loadEvents() {
     try {
         const res = await fetch('/api/admin/events');
@@ -153,14 +143,18 @@ eventForm.addEventListener('submit', async (e) => {
     const eventId = eventIdInput.value;
     const isEditing = !!eventId; 
 
+    // FIXED: Convert local time to standard UTC ISO String before sending to server
+    const startInput = document.getElementById('event-start').value;
+    const endInput = document.getElementById('event-end').value;
+
     const payload = {
         title: document.getElementById('event-title').value,
         ageLimit: parseInt(document.getElementById('event-age').value),
         eventType: document.getElementById('event-type').value,
         capacity: parseInt(document.getElementById('event-capacity').value),
         price: Number(document.getElementById('event-price').value),
-        startDate: document.getElementById('event-start').value,
-        endDate: document.getElementById('event-end').value,
+        startDate: startInput ? new Date(startInput).toISOString() : null,
+        endDate: endInput ? new Date(endInput).toISOString() : null,
         location: document.getElementById('event-location').value,
         description: document.getElementById('event-description').value,
         imageUrl: document.getElementById('event-image').value 
@@ -232,7 +226,9 @@ window.editEvent = function(eventData) {
     eventForm.scrollIntoView({ behavior: 'smooth' });
 }
 
+// FIXED: Safely read the ISO string from the server and display it in the user's local timezone
 function formatForDateTimeLocal(isoString) {
+    if (!isoString) return '';
     const d = new Date(isoString);
     return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
 }
@@ -264,16 +260,13 @@ window.deleteUser = async function(id) {
 }
 
 // ==========================================
-// 🔴 NEW: GLOBAL WEBSOCKET LISTENER
+// 🔴 GLOBAL WEBSOCKET LISTENER
 // ==========================================
 const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
-    // Listen for the 'dashboardUpdate' pulse sent by the server
     socket.on('dashboardUpdate', () => {
         console.log("Live Update Received! Refreshing Admin Dashboard...");
-        
-        // Instantly fetch the newest data from the database
         loadAnalytics();
         loadEvents();
         loadUsers();
