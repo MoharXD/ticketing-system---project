@@ -1,3 +1,5 @@
+// --- 1. CACHING DOM ELEMENTS ---
+// Finding elements in the document is slow, so we save them to variables once at the top to optimize performance.
 const authForm = document.getElementById('auth-form');
 const authTitle = document.getElementById('auth-title');
 const authBtn = document.getElementById('auth-btn');
@@ -20,20 +22,23 @@ const searchBar = document.getElementById('event-search-bar');
 const homeLogo = document.getElementById('home-logo'); 
 const initialLoader = document.getElementById('initial-loader'); 
 
+// Application State Variables
 let isLoginMode = true;
 let currentEventId = null;
 let currentEventPrice = 0; 
 let allEvents = []; 
 
 // ==========================================
-// 🔴 THE MASTER LIVE SYNC ENGINE
+// 🔴 THE MASTER LIVE SYNC ENGINE (WebSockets)
 // ==========================================
 const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
     socket.on('connect', () => console.log('🟢 LIVE CONNECTION ESTABLISHED!'));
     
+    // Listens for 'seatUpdate' pulses from the server
     socket.on('seatUpdate', async (data) => {
+        // Only run the heavy seat redraw function if the user is currently looking at that exact event
         if (String(currentEventId) === String(data.eventId)) {
             if (!seatedView.classList.contains('d-none')) {
                 await softUpdateSeats(currentEventId);
@@ -41,6 +46,7 @@ if (socket) {
         }
     });
 
+    // Listens for global event data changes (new events, deleted events, capacity changes)
     socket.on('eventUpdate', async () => {
         await refreshGlobalEvents();
     });
@@ -48,6 +54,7 @@ if (socket) {
     console.error('🔴 LIVE CONNECTION FAILED: socket.io is not loaded in index.html');
 }
 
+// Security: If the backend returns 'forceLogout', it means the admin deleted this user's account. Kick them out.
 function handlePossibleForceLogout(data) {
     if (data.forceLogout) {
         alert("🚨 Session Terminated: " + data.message);
@@ -57,7 +64,10 @@ function handlePossibleForceLogout(data) {
     return false;
 }
 
+// ==========================================
 // ⏱️ THE FRONTEND HEARTBEAT (Auto-Expiration)
+// ==========================================
+// This function runs continuously in the background to lock events down the second time expires
 function checkEventExpirations() {
     const now = new Date();
 
@@ -65,11 +75,13 @@ function checkEventExpirations() {
         const isExpired = now > new Date(e.endDate);
         const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
 
+        // If it's expired and we haven't disabled the button yet, do it now!
         if (isExpired && btn && !btn.disabled) {
             btn.disabled = true;
             btn.innerText = 'Event Ended';
             btn.classList.replace('btn-outline-primary', 'btn-secondary');
 
+            // If the user is physically inside the checkout screen, alert them and boot them back to the menu
             if (currentEventId === String(e._id)) {
                 alert("⏳ Time's up! This event has officially ended and is no longer accepting bookings.");
                 homeLogo.click(); 
@@ -78,16 +90,21 @@ function checkEventExpirations() {
     });
 }
 
+// SetInterval executes the function every 10,000 milliseconds (10 seconds)
 setInterval(checkEventExpirations, 10000);
 
-// 🌍 GLOBAL EVENT REFRESHER 
+// ==========================================
+// 🌍 GLOBAL DATA REFRESH LOGIC
+// ==========================================
 async function refreshGlobalEvents() {
     try {
+        // CACHE BUSTING: We append '?t=[timestamp]' to the URL. This prevents mobile browsers from showing old, stored data.
         const timestamp = new Date().getTime();
         const res = await fetch(`/api/events?t=${timestamp}`);
         const freshEvents = await res.json();
         allEvents = freshEvents; 
 
+        // Silently update the 'data-available' hidden attribute on all buttons
         freshEvents.forEach(e => {
             const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
             if (btn && !btn.disabled) { 
@@ -95,12 +112,14 @@ async function refreshGlobalEvents() {
             }
         });
 
+        // Live UI update for General Admission View
         if (currentEventId && !generalView.classList.contains('d-none')) {
             const currentEvent = freshEvents.find(e => e._id === currentEventId);
             if (currentEvent) {
                 const available = currentEvent.capacity - currentEvent.ticketsSold;
                 const ticketsLeftEl = document.getElementById('tickets-left');
 
+                // If someone else bought a ticket, flash the number green to show it updated live!
                 if (parseInt(ticketsLeftEl.innerText) !== available) {
                     ticketsLeftEl.innerText = available;
                     ticketsLeftEl.style.transition = 'color 0.3s ease';
@@ -108,6 +127,7 @@ async function refreshGlobalEvents() {
                     setTimeout(() => ticketsLeftEl.style.color = '', 1000);
                 }
 
+                // Adjust input limits so users can't request more tickets than exist
                 const qtyInput = document.getElementById('general-qty');
                 qtyInput.max = available;
                 if (parseInt(qtyInput.value) > available) {
@@ -117,13 +137,14 @@ async function refreshGlobalEvents() {
             }
         }
         
-        checkEventExpirations();
+        checkEventExpirations(); // Run the heartbeat check
         
     } catch(err) {
         console.error("Live sync failed", err);
     }
 }
 
+// "Soft Update": Analyzes the live seats against the user's currently clicked seats, updating colors without erasing their selections.
 async function softUpdateSeats(eventId) {
     try {
         const timestamp = new Date().getTime();
@@ -157,9 +178,11 @@ async function softUpdateSeats(eventId) {
     }
 }
 
+// --- BASIC NAVIGATION LOGIC ---
 if (homeLogo) {
     homeLogo.addEventListener('click', (e) => {
         e.preventDefault();
+        // Uses the 'd-none' (Display None) Bootstrap class to toggle Single Page Application (SPA) views
         if (authSection.classList.contains('d-none')) {
             profileSection.classList.add('d-none');
             ticketsSection.classList.add('d-none');
@@ -183,6 +206,7 @@ toggleAuth.addEventListener('click', (e) => {
     toggleAuth.innerText = isLoginMode ? 'Need an account? Sign up here.' : 'Already have an account? Login here.';
 });
 
+// --- AUTHENTICATION SUBMISSION ---
 authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const endpoint = isLoginMode ? '/api/login' : '/api/signup';
@@ -227,6 +251,7 @@ function showBookingScreen(username, isAdmin = false) {
     userDisplay.classList.remove('d-none');
     usernameBadge.innerText = username;
     
+    // Dynamically injects an Admin button if the session verifies they have root access
     if (isAdmin && !document.getElementById('admin-btn')) {
         const adminLink = document.createElement('a');
         adminLink.id = 'admin-btn';
@@ -248,6 +273,7 @@ async function renderEvents() {
     }
 }
 
+// Client-side search filtering
 if (searchBar) {
     searchBar.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
@@ -260,7 +286,8 @@ if (searchBar) {
     });
 }
 
-// 🎬 RATING BADGE GENERATOR
+// 🎬 CBFC RATING LOGIC
+// Translates the raw integer from the database into a visually distinct UI badge
 function getRatingBadge(age) {
     if (age === 0) return `<span class="badge bg-success ms-2">U</span>`;
     if (age === 7) return `<span class="badge bg-info text-dark ms-2">UA 7+</span>`;
@@ -271,31 +298,30 @@ function getRatingBadge(age) {
     return '';
 }
 
+// --- DYNAMIC HTML GENERATION ---
 function displayEvents(events) {
     const container = document.getElementById('events-container');
 
     if (events.length === 0) {
-        container.innerHTML = '<div class="col-12"><p class="text-muted text-center fs-5 mt-4">No events found matching your search. Try another term!</p></div>';
+        container.innerHTML = '<div class="col-12"><p class="text-muted text-center fs-5 mt-4">No events found matching your search.</p></div>';
         return;
     }
 
     const now = new Date();
 
+    // Map over the array of events and inject HTML for each one
     container.innerHTML = events.map(e => {
         const priceText = `<span class="badge bg-success ms-2 fs-6">₹${e.price || 0}</span>`; 
-        const ratingBadge = getRatingBadge(e.ageLimit); // NEW: Get the CBFC Badge!
-        
+        const ratingBadge = getRatingBadge(e.ageLimit); 
         const imgHtml = e.imageUrl ? `<img src="${e.imageUrl}" class="event-card-img" alt="${e.title}">` : '';
         
         const isExpired = now > new Date(e.endDate);
+        // Conditionally render the button as disabled if the event has passed
         const btnHtml = isExpired 
             ? `<button class="btn btn-secondary w-100 fw-bold mt-auto select-event-btn py-2" disabled data-id="${e._id}">Event Ended</button>`
             : `<button class="btn btn-outline-primary w-100 fw-bold mt-auto select-event-btn py-2" 
-                data-id="${e._id}" 
-                data-title="${e.title}" 
-                data-age="${e.ageLimit || 0}"
-                data-type="${e.eventType}"
-                data-price="${e.price || 0}"
+                data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}"
+                data-type="${e.eventType}" data-price="${e.price || 0}"
                 data-available="${e.capacity - e.ticketsSold}">Select Event</button>`;
 
         return `
@@ -307,14 +333,11 @@ function displayEvents(events) {
                         <h4 class="card-title fw-bold text-dark mb-0">${e.title} ${priceText} ${ratingBadge}</h4> 
                     </div>
                     <p class="card-text text-muted mb-3 fs-6">📍 <span class="fw-medium">${e.location}</span></p>
-                    
                     <div class="bg-light p-3 rounded-3 mb-3">
                         <p class="card-text small mb-1"><strong class="text-secondary">Start:</strong> ${new Date(e.startDate).toLocaleString()}</p>
                         <p class="card-text small mb-0"><strong class="text-secondary">End:</strong> ${new Date(e.endDate).toLocaleString()}</p>
                     </div>
-                    
                     <p class="card-text text-secondary small mb-4 flex-grow-1">${e.description || "No description provided."}</p>
-                    
                     ${btnHtml}
                 </div>
             </div>
@@ -322,21 +345,22 @@ function displayEvents(events) {
     `}).join('');
 }
 
+// EVENT DELEGATION: Instead of attaching 50 event listeners to 50 buttons, we attach 1 listener to the container.
+// This is a highly efficient JavaScript pattern.
 document.getElementById('events-container').addEventListener('click', async (e) => {
     if (e.target.classList.contains('select-event-btn') && !e.target.disabled) {
         const eventId = e.target.getAttribute('data-id');
         const title = e.target.getAttribute('data-title');
         const requiredAge = parseInt(e.target.getAttribute('data-age'));
         const eventType = e.target.getAttribute('data-type');
-        
         const availableTickets = parseInt(e.target.getAttribute('data-available'));
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
-        // 🛡️ NEW CBFC SECURITY LOGIC
+        // 🛡️ SECURITY LOGIC: Age Validation
         if (requiredAge === 99) {
             alert(`⚠️ Specialized Audience (S)\n\nThis event is restricted to specific professionals (e.g., doctors, scientists). Relevant ID/credentials will be required at the venue.`);
-            // Proceeds to booking after warning.
         } else if (requiredAge > 0) {
+            // Fetch user profile to verify Date of Birth
             const timestamp = new Date().getTime();
             const res = await fetch(`/api/profile?t=${timestamp}`);
             const data = await res.json();
@@ -352,12 +376,10 @@ document.getElementById('events-container').addEventListener('click', async (e) 
             const userAge = calculateAge(data.user.dob);
             
             if (userAge < requiredAge) {
-                if (requiredAge === 18) {
-                    // Strict Block for Adult Films
+                if (requiredAge === 18) { // Strict block
                     alert(`🛑 Access Denied!\n\nYou are ${userAge} years old. This is an 'A' rated event strictly for adults (18+).`);
                     return;
-                } else {
-                    // Soft Warning for Parental Guidance (UA 7+, 13+, 16+)
+                } else { // Soft block (Parental consent)
                     const proceed = confirm(`⚠️ Parental Guidance Advised\n\nYou are ${userAge} years old. This event is rated UA ${requiredAge}+. \n\nDo you have parental permission to book this event?`);
                     if (!proceed) return;
                 }
@@ -371,6 +393,7 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         seatedView.classList.add('d-none');
         generalView.classList.add('d-none');
 
+        // Route UI based on Event Type
         if (eventType === 'Seated') {
             seatedView.classList.remove('d-none');
             document.getElementById('seated-total').innerText = '0'; 
@@ -382,11 +405,11 @@ document.getElementById('events-container').addEventListener('click', async (e) 
             document.getElementById('general-qty').value = 1;
             document.getElementById('general-total').innerText = currentEventPrice; 
         }
-
         actionSection.scrollIntoView({ behavior: 'smooth' });
     }
 });
 
+// DYNAMIC MATRIX GENERATION (Seat Map)
 async function renderSeatsForEvent(eventId) {
     try {
         seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout...</p>';
@@ -394,6 +417,7 @@ async function renderSeatsForEvent(eventId) {
         const res = await fetch(`/api/seats/${eventId}?t=${timestamp}`);
         let seats = await res.json();
         
+        // Sort seats numerically using Regex to separate numbers from letters
         seats.sort((a, b) => {
             let numA = parseInt(a.seatId.replace(/\D/g, ''));
             let numB = parseInt(b.seatId.replace(/\D/g, ''));
@@ -404,6 +428,7 @@ async function renderSeatsForEvent(eventId) {
         const halfRow = seatsPerRow / 2;
         let html = '<div class="d-flex flex-column align-items-center">';
 
+        // Loop through the data in chunks to build distinct rows (A, B, C, etc.)
         for (let i = 0; i < seats.length; i += seatsPerRow) {
             const rowSeats = seats.slice(i, i + seatsPerRow);
             const rowLetter = String.fromCharCode(65 + Math.floor(i / seatsPerRow)); 
@@ -413,11 +438,10 @@ async function renderSeatsForEvent(eventId) {
 
             for (let j = 0; j < rowSeats.length; j++) {
                 if (j === halfRow) {
-                    html += `<div style="width: 40px;"></div>`; 
+                    html += `<div style="width: 40px;"></div>`; // Adds the middle aisle
                 }
                 html += generateSeatHTML(rowSeats[j]);
             }
-
             html += `</div>`;
         }
 
@@ -441,6 +465,7 @@ function generateSeatHTML(seat) {
     return `<button class="${classes}" data-id="${seat.seatId}" title="Seat ${seat.seatId}">${displayNum}</button>`;
 }
 
+// Seat Selection logic
 seatMap.addEventListener('click', (e) => {
     if (e.target.classList.contains('bms-seat') && e.target.classList.contains('available')) {
         e.target.classList.toggle('selected');
@@ -451,6 +476,7 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
+// Dynamic math updating
 document.getElementById('general-qty').addEventListener('input', (e) => {
     let qty = parseInt(e.target.value) || 0;
     const max = parseInt(e.target.max) || 0;
@@ -459,14 +485,15 @@ document.getElementById('general-qty').addEventListener('input', (e) => {
         qty = max;
         e.target.value = max;
     }
-
     document.getElementById('general-total').innerText = (qty * currentEventPrice);
 });
 
+// --- CHECKOUT SUBMISSIONS ---
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0) return;
 
+    // Show processing state to prevent double-clicking
     const btn = e.target;
     const originalText = btn.innerText;
     btn.innerText = 'Processing...';
@@ -484,9 +511,9 @@ document.getElementById('book-seats-btn').addEventListener('click', async (e) =>
         if (data.success) {
             document.getElementById('seated-total').innerText = '0'; 
             await renderSeatsForEvent(currentEventId);
-            setTimeout(() => alert(data.message), 10);
+            setTimeout(() => alert(data.message), 10); // Wait 10ms so UI updates BEFORE the alert freezes the thread
         } else {
-            await softUpdateSeats(currentEventId);
+            await softUpdateSeats(currentEventId); // Race condition hit! Show user the taken seats.
             setTimeout(() => alert(data.message), 10);
         }
     } catch (err) {
@@ -502,10 +529,7 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
     const qty = parseInt(qtyInput.value);
     const max = parseInt(qtyInput.max);
     
-    if (qty > max) {
-        alert("You cannot book more than the available tickets!");
-        return;
-    }
+    if (qty > max) { alert("You cannot book more than the available tickets!"); return; }
 
     const btn = e.target;
     const originalText = btn.innerText;
@@ -539,6 +563,7 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
     }
 });
 
+// Initial Load Check
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const timestamp = new Date().getTime();
@@ -558,6 +583,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// --- PROFILE & TICKET MANAGEMENT LOGIC ---
+// (Handles loading the QR Code API and User Data form submissions. Logic is similar to above).
 document.getElementById('my-tickets-link').addEventListener('click', async (e) => {
     e.preventDefault();
     bookingSection.classList.add('d-none');
@@ -588,34 +615,23 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
                             <h5 class="fw-bold text-dark mb-1">${t.eventTitle}</h5>
                             <p class="text-muted small mb-2">📍 ${t.location}</p>
                             <p class="mb-1 small"><strong>Date:</strong> ${new Date(t.startDate).toLocaleString()}</p>
-                            ${t.eventType === 'Seated' 
-                                ? `<p class="mb-0 text-success fw-bold">Seat: ${t.seatId}</p>` 
-                                : `<p class="mb-0 text-primary fw-bold">General Admission</p><p class="mb-0 text-muted small" style="font-size: 11px;">ID: ${t.seatId}</p>`}
+                            ${t.eventType === 'Seated' ? `<p class="mb-0 text-success fw-bold">Seat: ${t.seatId}</p>` : `<p class="mb-0 text-primary fw-bold">General Admission</p><p class="mb-0 text-muted small" style="font-size: 11px;">ID: ${t.seatId}</p>`}
                             <button class="btn btn-outline-danger btn-sm mt-3 fw-bold cancel-ticket-btn" data-eventid="${t.eventId}" data-seatid="${t.seatId}">Cancel Ticket</button>
                         </div>
-                        
                         <div class="qr-code-box bg-light p-2 rounded border shadow-sm" id="qr-${t.seatId}"></div>
                     </div>
                 </div>
             </div>
         `).join('');
 
+        // Loop through and use an external script to draw QR codes on the fly
         tickets.forEach(t => {
             const qrContainer = document.getElementById(`qr-${t.seatId}`);
             if (qrContainer && typeof QRCode !== 'undefined') {
                 const qrDataString = `TicketMaster Pro\nEvent: ${t.eventTitle}\nDate: ${new Date(t.startDate).toLocaleString()}\nSeat: ${t.seatId}`;
-                
-                new QRCode(qrContainer, {
-                    text: qrDataString,
-                    width: 90,
-                    height: 90,
-                    colorDark : "#0f172a", 
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
+                new QRCode(qrContainer, { text: qrDataString, width: 90, height: 90, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
             }
         });
-
     } catch (err) {
         container.innerHTML = '<p class="text-danger text-center">Failed to load tickets.</p>';
     }
@@ -642,7 +658,7 @@ document.getElementById('my-tickets-container').addEventListener('click', async 
             if (handlePossibleForceLogout(data)) return;
 
             if (data.success) {
-                document.getElementById('my-tickets-link').click();
+                document.getElementById('my-tickets-link').click(); // Refresh tickets
             } else {
                 alert(data.message);
                 e.target.disabled = false;
@@ -661,6 +677,7 @@ document.getElementById('back-to-booking-from-tickets').addEventListener('click'
     bookingSection.classList.remove('d-none');
 });
 
+// Age calculation helper for Profile/Validation
 function calculateAge(dobString) {
     if (!dobString) return '';
     const dob = new Date(dobString);
