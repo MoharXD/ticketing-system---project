@@ -17,7 +17,6 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
-// --- MIDDLEWARE ---
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'))); 
 
@@ -28,9 +27,7 @@ app.use(session({
     cookie: { secure: false } 
 }));
 
-// --- DATABASE CONNECTION ---
 const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
-
 mongoose.connect(DB_URI)
     .then(async () => {
         console.log('✅ Connected to MongoDB');
@@ -40,7 +37,27 @@ mongoose.connect(DB_URI)
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // ==========================================
-// 🛡️ AUTHENTICATION & SESSIONS
+// 🛡️ SECURITY MIDDLEWARE (Kills Ghost Users)
+// ==========================================
+const verifyActiveUser = async (req, res, next) => {
+    if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
+    
+    // Check if the user STILL exists in the database
+    const user = await User.findById(req.session.userId);
+    if (!user) {
+        req.session.destroy(); // Destroy the ghost session
+        return res.status(401).json({ success: false, forceLogout: true, message: "Your account has been deleted by an administrator." });
+    }
+    next();
+};
+
+const requireAdmin = (req, res, next) => {
+    if (req.session.isAdmin) next();
+    else res.status(403).json({ success: false, message: "Forbidden: Admins Only" });
+};
+
+// ==========================================
+// 🔑 AUTHENTICATION 
 // ==========================================
 
 app.post('/api/signup', async (req, res) => {
@@ -54,6 +71,8 @@ app.post('/api/signup', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: false });
+        
+        io.emit('dashboardUpdate'); // Tell Admin analytics a new user joined
         res.json({ success: true, message: "Account created! You can now log in." });
     } catch (err) {
         res.status(500).json({ success: false, message: "Server error." });
@@ -72,6 +91,8 @@ app.post('/api/admin/signup', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: true });
+        
+        io.emit('dashboardUpdate');
         res.json({ success: true, message: "Admin account created successfully." });
     } catch (err) {
         res.status(500).json({ success: false, message: "Server error." });
@@ -103,8 +124,13 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/check-session', (req, res) => {
+app.get('/api/check-session', async (req, res) => {
     if (req.session.userId) {
+        const user = await User.findById(req.session.userId);
+        if(!user) {
+            req.session.destroy();
+            return res.json({ loggedIn: false });
+        }
         res.json({ loggedIn: true, username: req.session.username, isAdmin: req.session.isAdmin });
     } else {
         res.json({ loggedIn: false });
@@ -112,17 +138,15 @@ app.get('/api/check-session', (req, res) => {
 });
 
 // ==========================================
-// 👤 USER PROFILE
+// 👤 USER PROFILE (Protected)
 // ==========================================
 
-app.get('/api/profile', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ success: false });
+app.get('/api/profile', verifyActiveUser, async (req, res) => {
     const user = await User.findById(req.session.userId).select('-password');
     res.json({ success: true, user });
 });
 
-app.put('/api/profile', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ success: false });
+app.put('/api/profile', verifyActiveUser, async (req, res) => {
     try {
         const { username, fullName, email, phone, dob, address } = req.body;
         const user = await User.findById(req.session.userId);
@@ -143,7 +167,7 @@ app.put('/api/profile', async (req, res) => {
 });
 
 // ==========================================
-// 🎟️ PUBLIC EVENTS & SEATS
+// 🎟️ EVENTS & SEATS
 // ==========================================
 
 app.get('/api/events', async (req, res) => {
@@ -157,13 +181,11 @@ app.get('/api/seats/:eventId', async (req, res) => {
 });
 
 // ==========================================
-// 🛒 BOOKING & CANCELLATION ROUTES
+// 🛒 BOOKING (Protected)
 // ==========================================
 
-app.post('/api/events/book-seats', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
+app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
     const { eventId, seats } = req.body; 
-    
     try {
         const event = await Event.findById(eventId);
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
@@ -181,23 +203,22 @@ app.post('/api/events/book-seats', async (req, res) => {
         await event.save();
         
         io.emit('seatUpdate', { eventId: eventId }); 
+        io.emit('dashboardUpdate'); // Update Admin Analytics live
+        io.emit('eventUpdate'); // Update everyone's event lists live
+
         res.json({ success: true, message: `Successfully booked ${seats.length} seat(s)!` });
     } catch (err) {
         res.status(500).json({ success: false, message: "Booking error." });
     }
 });
 
-app.post('/api/events/book-general', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
+app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
     const { eventId, qty } = req.body;
     const requestedQty = Number(qty);
 
     try {
         const event = await Event.findOneAndUpdate(
-            { 
-                _id: eventId,
-                $expr: { $gte: [ "$capacity", { $add: ["$ticketsSold", requestedQty] } ] }
-            },
+            { _id: eventId, $expr: { $gte: [ "$capacity", { $add: ["$ticketsSold", requestedQty] } ] } },
             { $inc: { ticketsSold: requestedQty } },
             { new: true }
         );
@@ -217,14 +238,16 @@ app.post('/api/events/book-general', async (req, res) => {
         await Seat.insertMany(generalTickets);
 
         io.emit('seatUpdate', { eventId: eventId });
+        io.emit('dashboardUpdate'); 
+        io.emit('eventUpdate'); 
+
         res.json({ success: true, message: `Successfully booked ${requestedQty} General Admission ticket(s)!` });
     } catch (err) {
         res.status(500).json({ success: false, message: "Booking error." });
     }
 });
 
-app.get('/api/my-tickets', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
+app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
     try {
         const mySeats = await Seat.find({ 
             $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
@@ -248,10 +271,8 @@ app.get('/api/my-tickets', async (req, res) => {
     }
 });
 
-app.post('/api/events/cancel-booking', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
+app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
     const { eventId, seatId } = req.body;
-
     try {
         const event = await Event.findById(eventId);
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
@@ -273,6 +294,9 @@ app.post('/api/events/cancel-booking', async (req, res) => {
             await event.save();
             
             io.emit('seatUpdate', { eventId: eventId });
+            io.emit('dashboardUpdate');
+            io.emit('eventUpdate'); 
+            
             res.json({ success: true, message: "Booking cancelled successfully." });
         } else {
             res.status(400).json({ success: false, message: "Ticket not found or already cancelled." });
@@ -283,13 +307,8 @@ app.post('/api/events/cancel-booking', async (req, res) => {
 });
 
 // ==========================================
-// 🛠️ ADMIN ROUTES
+// 🛠️ ADMIN ROUTES (Protected)
 // ==========================================
-
-const requireAdmin = (req, res, next) => {
-    if (req.session.isAdmin) next();
-    else res.status(403).json({ success: false, message: "Forbidden" });
-};
 
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
@@ -334,6 +353,9 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
             }
             await Seat.insertMany(seatsToCreate);
         }
+        
+        io.emit('eventUpdate'); 
+        io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
     } catch (err) {
         res.status(500).json({ success: false, message: "Error creating event." });
@@ -363,6 +385,10 @@ app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
         }
 
         await Event.findByIdAndUpdate(req.params.id, req.body);
+        
+        io.emit('eventUpdate');
+        io.emit('seatUpdate', { eventId: req.params.id });
+        io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event updated successfully." });
     } catch (err) {
         res.status(500).json({ success: false, message: "Error updating event." });
@@ -373,60 +399,51 @@ app.delete('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try {
         await Event.findByIdAndDelete(req.params.id);
         await Seat.deleteMany({ eventId: req.params.id }); 
+        
+        io.emit('eventUpdate');
+        io.emit('dashboardUpdate');
         res.json({ success: true, message: "Event deleted." });
     } catch (err) {
         res.status(500).json({ success: false, message: "Error deleting event." });
     }
 });
 
-// --- FIXED: CASCADING DELETE FOR USERS ---
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     try {
         const userId = req.params.id;
-        
-        // 1. Find the user first to make sure they exist
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-        // 2. Find every single seat this user has booked
         const userSeats = await Seat.find({ userId: userId });
 
         if (userSeats.length > 0) {
-            // Group the seats by Event ID so we know how many to subtract from each event
             const eventCounts = {};
             userSeats.forEach(seat => {
                 eventCounts[seat.eventId] = (eventCounts[seat.eventId] || 0) + 1;
             });
 
-            // 3. Subtract the tickets from the Events' total sold count
             for (const eventId in eventCounts) {
-                await Event.findByIdAndUpdate(eventId, {
-                    $inc: { ticketsSold: -eventCounts[eventId] }
-                });
+                await Event.findByIdAndUpdate(eventId, { $inc: { ticketsSold: -eventCounts[eventId] } });
             }
 
-            // 4. Delete their General Admission tickets entirely
             await Seat.deleteMany({ userId: userId, seatId: { $regex: /^GA-/ } });
-            
-            // 5. Release their Specific Seated tickets back to 'Available'
             await Seat.updateMany(
                 { userId: userId, seatId: { $not: { $regex: /^GA-/ } } },
                 { $set: { status: 'Available', bookedBy: null, userId: null } }
             );
 
-            // 6. Send a WebSocket pulse to update everyone's live screen!
             for (const eventId in eventCounts) {
                 io.emit('seatUpdate', { eventId: eventId });
             }
         }
 
-        // 7. Finally, delete the actual user account
         await User.findByIdAndDelete(userId);
         
+        io.emit('dashboardUpdate');
+        io.emit('eventUpdate'); 
         res.json({ success: true, message: "User and their booked tickets were deleted successfully." });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: "Error deleting user and cascading their tickets." });
+        res.status(500).json({ success: false, message: "Error deleting user." });
     }
 });
 
