@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const bcrypt = require('bcryptjs'); 
 const path = require('path');
-const http = require('http'); // NEW: Required for WebSockets
-const { Server } = require('socket.io'); // NEW: WebSocket library
+const http = require('http'); 
+const { Server } = require('socket.io'); 
 require('dotenv').config(); 
 
 const User = require('./models/User'); 
@@ -12,8 +12,8 @@ const Event = require('./models/Event');
 const Seat = require('./models/Seat');
 
 const app = express();
-const server = http.createServer(app); // NEW: Wrap Express in HTTP
-const io = new Server(server); // NEW: Attach Socket.io to the server
+const server = http.createServer(app); 
+const io = new Server(server); 
 
 const PORT = process.env.PORT || 3000;
 
@@ -180,9 +180,7 @@ app.post('/api/events/book-seats', async (req, res) => {
         event.ticketsSold += seats.length;
         await event.save();
         
-        // NEW: Tell all connected users that seats have changed!
         io.emit('seatUpdate', { eventId: eventId }); 
-        
         res.json({ success: true, message: `Successfully booked ${seats.length} seat(s)!` });
     } catch (err) {
         res.status(500).json({ success: false, message: "Booking error." });
@@ -218,9 +216,7 @@ app.post('/api/events/book-general', async (req, res) => {
         }
         await Seat.insertMany(generalTickets);
 
-        // NEW: Tell all connected users that GA capacity has changed!
         io.emit('seatUpdate', { eventId: eventId });
-
         res.json({ success: true, message: `Successfully booked ${requestedQty} General Admission ticket(s)!` });
     } catch (err) {
         res.status(500).json({ success: false, message: "Booking error." });
@@ -276,9 +272,7 @@ app.post('/api/events/cancel-booking', async (req, res) => {
             event.ticketsSold = Math.max(0, event.ticketsSold - 1);
             await event.save();
             
-            // NEW: Tell everyone a seat just opened up!
             io.emit('seatUpdate', { eventId: eventId });
-            
             res.json({ success: true, message: "Booking cancelled successfully." });
         } else {
             res.status(400).json({ success: false, message: "Ticket not found or already cancelled." });
@@ -385,16 +379,57 @@ app.delete('/api/admin/events/:id', requireAdmin, async (req, res) => {
     }
 });
 
+// --- FIXED: CASCADING DELETE FOR USERS ---
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     try {
-        await User.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: "User deleted." });
+        const userId = req.params.id;
+        
+        // 1. Find the user first to make sure they exist
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        // 2. Find every single seat this user has booked
+        const userSeats = await Seat.find({ userId: userId });
+
+        if (userSeats.length > 0) {
+            // Group the seats by Event ID so we know how many to subtract from each event
+            const eventCounts = {};
+            userSeats.forEach(seat => {
+                eventCounts[seat.eventId] = (eventCounts[seat.eventId] || 0) + 1;
+            });
+
+            // 3. Subtract the tickets from the Events' total sold count
+            for (const eventId in eventCounts) {
+                await Event.findByIdAndUpdate(eventId, {
+                    $inc: { ticketsSold: -eventCounts[eventId] }
+                });
+            }
+
+            // 4. Delete their General Admission tickets entirely
+            await Seat.deleteMany({ userId: userId, seatId: { $regex: /^GA-/ } });
+            
+            // 5. Release their Specific Seated tickets back to 'Available'
+            await Seat.updateMany(
+                { userId: userId, seatId: { $not: { $regex: /^GA-/ } } },
+                { $set: { status: 'Available', bookedBy: null, userId: null } }
+            );
+
+            // 6. Send a WebSocket pulse to update everyone's live screen!
+            for (const eventId in eventCounts) {
+                io.emit('seatUpdate', { eventId: eventId });
+            }
+        }
+
+        // 7. Finally, delete the actual user account
+        await User.findByIdAndDelete(userId);
+        
+        res.json({ success: true, message: "User and their booked tickets were deleted successfully." });
     } catch (err) {
-        res.status(500).json({ success: false, message: "Error deleting user." });
+        console.error(err);
+        res.status(500).json({ success: false, message: "Error deleting user and cascading their tickets." });
     }
 });
 
-// CHANGED: Notice we are using server.listen instead of app.listen now!
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
