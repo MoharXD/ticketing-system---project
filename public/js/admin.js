@@ -148,12 +148,11 @@ async function loadUsers() {
 
 // --- FORM HANDLING (CREATE/UPDATE EVENT) ---
 eventForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Prevents the browser from reloading the page on submit
+    e.preventDefault(); 
 
     const eventId = eventIdInput.value;
-    const isEditing = !!eventId; // Coerce to boolean. If eventId exists, we are in Edit mode.
+    const isEditing = !!eventId; 
 
-    // Gather form data into a payload object
     const payload = {
         title: document.getElementById('event-title').value,
         ageLimit: parseInt(document.getElementById('event-age').value),
@@ -167,7 +166,6 @@ eventForm.addEventListener('submit', async (e) => {
         imageUrl: document.getElementById('event-image').value 
     };
 
-    // Determine the correct REST endpoint and HTTP Method based on context
     const endpoint = isEditing ? `/api/admin/events/${eventId}` : '/api/admin/events';
     const method = isEditing ? 'PUT' : 'POST';
 
@@ -183,7 +181,7 @@ eventForm.addEventListener('submit', async (e) => {
         if (data.success) {
             resetEventForm();
             loadEvents(); 
-            loadAnalytics(); // Refresh analytics to reflect new data
+            loadAnalytics(); 
         }
     } catch (err) {
         alert("An error occurred while saving the event.");
@@ -209,7 +207,6 @@ window.deleteEvent = async function(id) {
 }
 
 // --- UI STATE MANAGEMENT ---
-// Populates the form with existing data when 'Edit' is clicked
 window.editEvent = function(eventData) {
     eventIdInput.value = eventData._id;
     document.getElementById('event-title').value = eventData.title;
@@ -221,11 +218,9 @@ window.editEvent = function(eventData) {
     document.getElementById('event-description').value = eventData.description || '';
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
 
-    // Convert ISO date from DB to format required by <input type="datetime-local">
     document.getElementById('event-start').value = formatForDateTimeLocal(eventData.startDate);
     document.getElementById('event-end').value = formatForDateTimeLocal(eventData.endDate);
 
-    // Update UI to reflect Edit Mode
     formTitle.innerText = "✏️ Edit Event";
     submitBtn.innerText = "Update Event";
     submitBtn.classList.replace('btn-success', 'btn-warning');
@@ -237,7 +232,6 @@ window.editEvent = function(eventData) {
     eventForm.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Helper function to handle Timezone offsets when setting datetime inputs
 function formatForDateTimeLocal(isoString) {
     const d = new Date(isoString);
     return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
@@ -267,4 +261,21 @@ window.deleteUser = async function(id) {
     } catch (err) {
         alert("Failed to delete user.");
     }
+}
+
+// ==========================================
+// 🔴 NEW: GLOBAL WEBSOCKET LISTENER
+// ==========================================
+const socket = typeof io !== 'undefined' ? io() : null;
+
+if (socket) {
+    // Listen for the 'dashboardUpdate' pulse sent by the server
+    socket.on('dashboardUpdate', () => {
+        console.log("Live Update Received! Refreshing Admin Dashboard...");
+        
+        // Instantly fetch the newest data from the database
+        loadAnalytics();
+        loadEvents();
+        loadUsers();
+    });
 }
