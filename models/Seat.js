@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 
 const seatSchema = new mongoose.Schema({
-    // FOREIGN KEYS: 'ref' tells Mongoose that this ObjectId belongs to another collection. 
-    // This allows us to link a Seat directly to a specific Event and User.
+    // FOREIGN KEYS: 'ref' links this Seat document to a specific Event document.
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
     seatId: { type: String, required: true }, 
     status: { type: String, enum: ['Available', 'Booked'], default: 'Available' },
@@ -10,7 +9,8 @@ const seatSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null } 
 });
 
-// Compound Index: Ensures that for any given Event, a specific Seat ID (like "A1") can only exist once.
+// COMPOUND INDEX: This is a critical database constraint. 
+// It guarantees that for any specific Event ID, a Seat ID (like "A1") can only exist ONE time in the database.
 seatSchema.index({ eventId: 1, seatId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Seat', seatSchema);
