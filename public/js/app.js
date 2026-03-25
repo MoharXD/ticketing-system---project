@@ -31,6 +31,8 @@ let allEvents = [];
 const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
+    socket.on('connect', () => console.log('🟢 LIVE CONNECTION ESTABLISHED!'));
+    
     socket.on('seatUpdate', async (data) => {
         if (String(currentEventId) === String(data.eventId)) {
             if (!seatedView.classList.contains('d-none')) {
@@ -39,13 +41,13 @@ if (socket) {
         }
     });
 
-    // Listens for ANY event changes globally and quietly updates everything
     socket.on('eventUpdate', async () => {
         await refreshGlobalEvents();
     });
+} else {
+    console.error('🔴 LIVE CONNECTION FAILED: socket.io is not loaded in index.html');
 }
 
-// 👻 GHOST USER CATCHER
 function handlePossibleForceLogout(data) {
     if (data.forceLogout) {
         alert("🚨 Session Terminated: " + data.message);
@@ -55,14 +57,15 @@ function handlePossibleForceLogout(data) {
     return false;
 }
 
-// 🌍 GLOBAL EVENT REFRESHER (Updates GA & Home Page silently)
+// 🌍 GLOBAL EVENT REFRESHER (Bulletproof Cache-Busting)
 async function refreshGlobalEvents() {
     try {
-        const res = await fetch('/api/events', { cache: 'no-store' });
+        // FIXED: Added a timestamp to the URL so the browser CANNOT use old cached data
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/events?t=${timestamp}`);
         const freshEvents = await res.json();
         allEvents = freshEvents; 
 
-        // 1. Quietly update the hidden ticket counts on the main home screen cards
         freshEvents.forEach(e => {
             const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
             if (btn) {
@@ -70,14 +73,12 @@ async function refreshGlobalEvents() {
             }
         });
 
-        // 2. If user is currently looking at a General Admission page, update it instantly!
         if (currentEventId && !generalView.classList.contains('d-none')) {
             const currentEvent = freshEvents.find(e => e._id === currentEventId);
             if (currentEvent) {
                 const available = currentEvent.capacity - currentEvent.ticketsSold;
                 const ticketsLeftEl = document.getElementById('tickets-left');
 
-                // Visual flash to prove it updated live!
                 if (parseInt(ticketsLeftEl.innerText) !== available) {
                     ticketsLeftEl.innerText = available;
                     ticketsLeftEl.style.transition = 'color 0.3s ease';
@@ -85,7 +86,6 @@ async function refreshGlobalEvents() {
                     setTimeout(() => ticketsLeftEl.style.color = '', 1000);
                 }
 
-                // Adjust the quantity input dynamically so they can't book more than exist
                 const qtyInput = document.getElementById('general-qty');
                 qtyInput.max = available;
                 if (parseInt(qtyInput.value) > available) {
@@ -99,10 +99,10 @@ async function refreshGlobalEvents() {
     }
 }
 
-// 🪑 SOFT UPDATE FOR SEATS (Turns seats grey instantly)
 async function softUpdateSeats(eventId) {
     try {
-        const res = await fetch(`/api/seats/${eventId}`, { cache: 'no-store' });
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/seats/${eventId}?t=${timestamp}`);
         const dbSeats = await res.json();
         let changed = false;
 
@@ -217,7 +217,6 @@ function showBookingScreen(username, isAdmin = false) {
 
 async function renderEvents() {
     try {
-        // Use the global fetcher so we don't have redundant API calls
         await refreshGlobalEvents();
         displayEvents(allEvents);
     } catch (err) {
@@ -286,12 +285,12 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         const requiredAge = parseInt(e.target.getAttribute('data-age'));
         const eventType = e.target.getAttribute('data-type');
         
-        // Use the dynamically updated available count from the button attributes
         const availableTickets = parseInt(e.target.getAttribute('data-available'));
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
         if (requiredAge > 0) {
-            const res = await fetch('/api/profile', { cache: 'no-store' });
+            const timestamp = new Date().getTime();
+            const res = await fetch(`/api/profile?t=${timestamp}`);
             const data = await res.json();
             
             if (handlePossibleForceLogout(data)) return; 
@@ -335,7 +334,8 @@ document.getElementById('events-container').addEventListener('click', async (e) 
 async function renderSeatsForEvent(eventId) {
     try {
         seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout...</p>';
-        const res = await fetch(`/api/seats/${eventId}`, { cache: 'no-store' });
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/seats/${eventId}?t=${timestamp}`);
         let seats = await res.json();
         
         seats.sort((a, b) => {
@@ -395,9 +395,6 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
-// ==========================================
-// 🛒 NON-BLOCKING CHECKOUT BUTTONS
-// ==========================================
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0) return;
@@ -419,8 +416,6 @@ document.getElementById('book-seats-btn').addEventListener('click', async (e) =>
         if (data.success) {
             document.getElementById('seated-total').innerText = '0'; 
             await renderSeatsForEvent(currentEventId);
-            
-            // FIXED: Wait 10ms for DOM to paint BEFORE freezing browser with alert!
             setTimeout(() => alert(data.message), 10);
         } else {
             await softUpdateSeats(currentEventId);
@@ -460,14 +455,9 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
         if (handlePossibleForceLogout(data)) return;
 
         if (data.success) {
-            // Reset the form for the buyer instantly
             qtyInput.value = 1;
             document.getElementById('general-total').innerText = currentEventPrice;
-            
-            // Sync with DB
             await refreshGlobalEvents(); 
-            
-            // FIXED: Wait 10ms for DOM to paint the new number BEFORE freezing browser with alert!
             setTimeout(() => alert(data.message), 10);
         } else {
             await refreshGlobalEvents();
@@ -483,7 +473,8 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
 
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        const res = await fetch('/api/check-session', { cache: 'no-store' });
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/check-session?t=${timestamp}`);
         const data = await res.json();
         
         if (initialLoader) initialLoader.classList.add('d-none');
@@ -510,7 +501,8 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
     container.innerHTML = '<p class="text-center text-muted">Loading your tickets...</p>';
 
     try {
-        const res = await fetch('/api/my-tickets', { cache: 'no-store' });
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/my-tickets?t=${timestamp}`);
         const tickets = await res.json();
         
         if (handlePossibleForceLogout(tickets)) return;
@@ -624,7 +616,8 @@ document.getElementById('profile-link').addEventListener('click', async (e) => {
     actionSection.classList.add('d-none');
     
     try {
-        const res = await fetch('/api/profile', { cache: 'no-store' });
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/profile?t=${timestamp}`);
         const data = await res.json();
         
         if (handlePossibleForceLogout(data)) return;
