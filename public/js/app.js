@@ -18,6 +18,7 @@ const generalView = document.getElementById('general-view');
 const seatMap = document.getElementById('seat-map');
 const searchBar = document.getElementById('event-search-bar'); 
 const homeLogo = document.getElementById('home-logo'); 
+const initialLoader = document.getElementById('initial-loader'); // NEW: Caching the loader element
 
 let isLoginMode = true;
 let currentEventId = null;
@@ -50,7 +51,6 @@ toggleAuth.addEventListener('click', (e) => {
     toggleAuth.innerText = isLoginMode ? 'Need an account? Sign up here.' : 'Already have an account? Login here.';
 });
 
-// --- NEW HEAVILY TRACKED AUTH FORM ---
 authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const endpoint = isLoginMode ? '/api/login' : '/api/signup';
@@ -60,15 +60,7 @@ authForm.addEventListener('submit', async (e) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: usernameInput.value.trim(), password: passwordInput.value })
         });
-        
-        // Read raw response to prevent silent JSON crashes
-        const rawText = await res.text();
-        let data;
-        try {
-            data = JSON.parse(rawText);
-        } catch (parseErr) {
-            throw new Error("Failed to parse server response. Raw data: " + rawText.substring(0, 50));
-        }
+        const data = await res.json();
         
         if (data.success) {
             if (isLoginMode) {
@@ -91,9 +83,7 @@ authForm.addEventListener('submit', async (e) => {
             }
         }
     } catch (err) {
-        console.error(err);
-        // This will now print the EXACT reason it is failing!
-        alert("🚨 FRONTEND BUG DETECTED:\n\n" + err.message + "\n\n(Press F12 to see console for details)");
+        alert("Server error. Please try again.");
     }
 });
 
@@ -139,6 +129,7 @@ if (searchBar) {
     });
 }
 
+// --- DYNAMIC RENDERING ---
 function displayEvents(events) {
     const container = document.getElementById('events-container');
 
@@ -181,6 +172,7 @@ function displayEvents(events) {
     `}).join('');
 }
 
+// --- EVENT DELEGATION ---
 document.getElementById('events-container').addEventListener('click', async (e) => {
     if (e.target.classList.contains('select-event-btn')) {
         const eventId = e.target.getAttribute('data-id');
@@ -191,6 +183,7 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
 
+        // Conditional Age Verification Logic
         if (requiredAge > 0) {
             const res = await fetch('/api/profile');
             const data = await res.json();
@@ -231,12 +224,14 @@ document.getElementById('events-container').addEventListener('click', async (e) 
     }
 });
 
+// --- DYNAMIC MATRIX GENERATION (SEAT MAP) ---
 async function renderSeatsForEvent(eventId) {
     try {
         seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout...</p>';
         const res = await fetch(`/api/seats/${eventId}`);
         let seats = await res.json();
         
+        // Sort seats numerically using Regex
         seats.sort((a, b) => {
             let numA = parseInt(a.seatId.replace(/\D/g, ''));
             let numB = parseInt(b.seatId.replace(/\D/g, ''));
@@ -247,6 +242,7 @@ async function renderSeatsForEvent(eventId) {
         const halfRow = seatsPerRow / 2;
         let html = '<div class="d-flex flex-column align-items-center">';
 
+        // Loop through the array in chunks to create Rows
         for (let i = 0; i < seats.length; i += seatsPerRow) {
             const rowSeats = seats.slice(i, i + seatsPerRow);
             const rowLetter = String.fromCharCode(65 + Math.floor(i / seatsPerRow)); 
@@ -353,11 +349,26 @@ document.getElementById('book-general-btn').addEventListener('click', async () =
     }
 });
 
+// --- NEW: ROBUST SESSION CHECK WITH LOADER ---
 window.addEventListener('DOMContentLoaded', async () => {
-    const res = await fetch('/api/check-session');
-    const data = await res.json();
-    if (data.loggedIn) {
-        showBookingScreen(data.username, data.isAdmin);
+    try {
+        const res = await fetch('/api/check-session');
+        const data = await res.json();
+        
+        // Hide the loader once we hear back from the server
+        if (initialLoader) initialLoader.classList.add('d-none');
+        
+        if (data.loggedIn) {
+            // If logged in, go straight to the dashboard
+            showBookingScreen(data.username, data.isAdmin);
+        } else {
+            // If NOT logged in, officially reveal the login form
+            if (authSection) authSection.classList.remove('d-none');
+        }
+    } catch (err) {
+        // Fallback: If network error occurs, show the login form safely
+        if (initialLoader) initialLoader.classList.add('d-none');
+        if (authSection) authSection.classList.remove('d-none');
     }
 });
 
