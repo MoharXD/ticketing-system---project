@@ -1,18 +1,33 @@
 {
   "name": "ticketing-system",
   "version": "1.0.0",
-  "description": "Ticket Booking System",
+  "description": "Ticket Booking System - Full Stack MERN App",
   "main": "server.js",
+  
   "scripts": {
+    // The 'start' script is the entry point for production servers like Render."
     "start": "node server.js",
+    // The 'dev' script uses Nodemon for local development, automatically restarting the server when I save a file."
     "dev": "nodemon server.js"
   },
+  
   "dependencies": {
+    // BCRYPTJS: Handles cryptographic password hashing using salted algorithms.
     "bcryptjs": "^3.0.3",
+    
+    // DOTENV: Securely loads my hidden environment variables (like my MongoDB password) so they aren't exposed in my public GitHub code.
     "dotenv": "^17.3.1",
+    
+    // EXPRESS: The core web framework that handles my API routing and HTTP requests.
     "express": "^5.2.1",
+    
+    // EXPRESS-SESSION: Creates secure, server-side cookies to track logged-in users and prevent session hijacking.
     "express-session": "^1.19.0",
+    
+    // MONGOOSE: An Object Data Modeling (ODM) library that translates my JavaScript objects into MongoDB database documents.
     "mongoose": "^9.3.1",
+    
+    // SOCKET.IO: The WebSocket engine that keeps a persistent, live TCP connection open for real-time seat updates.
     "socket.io": "^4.7.5"
   }
 }
