@@ -1,28 +1,27 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
-const bcrypt = require('bcryptjs'); // Used for securely hashing passwords
+const bcrypt = require('bcryptjs'); 
 const path = require('path');
-require('dotenv').config(); // Loads environment variables
+const http = require('http'); // NEW: Required for WebSockets
+const { Server } = require('socket.io'); // NEW: WebSocket library
+require('dotenv').config(); 
 
-// Import Mongoose models to interact with the database
 const User = require('./models/User'); 
 const Event = require('./models/Event');
 const Seat = require('./models/Seat');
 
 const app = express();
-// Use Render's dynamically assigned port, or 3000 for local development
+const server = http.createServer(app); // NEW: Wrap Express in HTTP
+const io = new Server(server); // NEW: Attach Socket.io to the server
+
 const PORT = process.env.PORT || 3000;
 
 // --- MIDDLEWARE ---
-// Parses incoming JSON payloads from frontend fetch requests
 app.use(express.json());
-// Serves static files (HTML, CSS, JS) from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-// Sets up Server-Side Sessions to remember logged-in users
 app.use(session({
-    // Use Render environment variable for the session secret
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
     saveUninitialized: false,
@@ -30,13 +29,12 @@ app.use(session({
 }));
 
 // --- DATABASE CONNECTION ---
-// Use Render environment variable for MongoDB connection
 const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
 
 mongoose.connect(DB_URI)
     .then(async () => {
         console.log('✅ Connected to MongoDB');
-        await User.syncIndexes(); // Ensures unique constraints are built
+        await User.syncIndexes(); 
         await Seat.syncIndexes();
     })
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
@@ -51,17 +49,13 @@ app.post('/api/signup', async (req, res) => {
         if (!username || !password) return res.status(400).json({ success: false, message: "Fields required." });
 
         const cleanUsername = username.trim();
-
-        // Check if user already exists (case-insensitive search using Regex)
         const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
         if (existingUser) return res.status(400).json({ success: false, message: "Username taken." });
 
-        // SECURITY: Hash password with a 'salt' round of 10
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: false });
         res.json({ success: true, message: "Account created! You can now log in." });
     } catch (err) {
-        if (err.code === 11000) return res.status(400).json({ success: false, message: "A database constraint blocked this signup." });
         res.status(500).json({ success: false, message: "Server error." });
     }
 });
@@ -80,54 +74,32 @@ app.post('/api/admin/signup', async (req, res) => {
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: true });
         res.json({ success: true, message: "Admin account created successfully." });
     } catch (err) {
-        if (err.code === 11000) return res.status(400).json({ success: false, message: "Database error. Username taken." });
         res.status(500).json({ success: false, message: "Server error." });
     }
 });
 
-// --- THE NEW TRACKED LOGIN ROUTE ---
 app.post('/api/login', async (req, res) => {
-    console.log(`\n======================================`);
-    console.log(`[>>>] LOGIN ATTEMPT: "${req.body.username}"`);
     try {
         const { username, password } = req.body;
         const cleanUsername = username.trim();
         
-        console.log(`[1] Searching database for user...`);
         const user = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
-        
-        if (!user) {
-            console.log(`[---] FAILED: User not found in database.`);
-            return res.status(404).json({ success: false, notFound: true, message: "User not found. Would you like to sign up?" });
-        }
+        if (!user) return res.status(404).json({ success: false, notFound: true, message: "User not found. Would you like to sign up?" });
 
-        console.log(`[2] User found! Comparing passwords...`);
-        // SECURITY: Compare the plaintext password from the user with the hashed password in the DB
         const isMatch = await bcrypt.compare(password, user.password);
-        
-        if (!isMatch) {
-            console.log(`[---] FAILED: Passwords do not match.`);
-            return res.status(401).json({ success: false, message: "Incorrect password. Please try again." });
-        }
+        if (!isMatch) return res.status(401).json({ success: false, message: "Incorrect password. Please try again." });
 
-        console.log(`[3] Passwords match! Creating session...`);
-        // Establish the session
         req.session.userId = user._id;
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin;
-        
-        console.log(`[SUCCESS] User ${user.username} successfully logged in!`);
-        console.log(`======================================\n`);
-        
         res.json({ success: true, username: user.username, isAdmin: user.isAdmin });
     } catch (err) {
-        console.error("🚨 CRITICAL LOGIN ERROR:", err);
         res.status(500).json({ success: false, message: "Server error." });
     }
 });
 
 app.post('/api/logout', (req, res) => {
-    req.session.destroy(); // Destroys the session object on the server
+    req.session.destroy(); 
     res.json({ success: true });
 });
 
@@ -196,7 +168,6 @@ app.post('/api/events/book-seats', async (req, res) => {
         const event = await Event.findById(eventId);
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
 
-        // ATOMIC UPDATE: Prevents "Race Conditions" where two users try to book the exact same seat
         const result = await Seat.updateMany(
             { eventId: eventId, seatId: { $in: seats }, status: 'Available' },
             { $set: { status: 'Booked', bookedBy: req.session.username, userId: req.session.userId } } 
@@ -208,6 +179,10 @@ app.post('/api/events/book-seats', async (req, res) => {
 
         event.ticketsSold += seats.length;
         await event.save();
+        
+        // NEW: Tell all connected users that seats have changed!
+        io.emit('seatUpdate', { eventId: eventId }); 
+        
         res.json({ success: true, message: `Successfully booked ${seats.length} seat(s)!` });
     } catch (err) {
         res.status(500).json({ success: false, message: "Booking error." });
@@ -220,7 +195,6 @@ app.post('/api/events/book-general', async (req, res) => {
     const requestedQty = Number(qty);
 
     try {
-        // ATOMIC UPDATE: Finds the event AND checks if capacity allows for the requested quantity
         const event = await Event.findOneAndUpdate(
             { 
                 _id: eventId,
@@ -244,9 +218,11 @@ app.post('/api/events/book-general', async (req, res) => {
         }
         await Seat.insertMany(generalTickets);
 
+        // NEW: Tell all connected users that GA capacity has changed!
+        io.emit('seatUpdate', { eventId: eventId });
+
         res.json({ success: true, message: `Successfully booked ${requestedQty} General Admission ticket(s)!` });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ success: false, message: "Booking error." });
     }
 });
@@ -255,10 +231,7 @@ app.get('/api/my-tickets', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
     try {
         const mySeats = await Seat.find({ 
-            $or: [
-                { userId: req.session.userId },
-                { bookedBy: req.session.username }
-            ]
+            $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
         }).populate('eventId');
         
         const formattedTickets = mySeats.map(seat => {
@@ -290,9 +263,7 @@ app.post('/api/events/cancel-booking', async (req, res) => {
         let result;
         if (seatId.startsWith('GA-')) {
             result = await Seat.findOneAndDelete({ 
-                eventId, 
-                seatId, 
-                $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
+                eventId, seatId, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
             });
         } else {
             result = await Seat.findOneAndUpdate(
@@ -304,6 +275,10 @@ app.post('/api/events/cancel-booking', async (req, res) => {
         if (result) {
             event.ticketsSold = Math.max(0, event.ticketsSold - 1);
             await event.save();
+            
+            // NEW: Tell everyone a seat just opened up!
+            io.emit('seatUpdate', { eventId: eventId });
+            
             res.json({ success: true, message: "Booking cancelled successfully." });
         } else {
             res.status(400).json({ success: false, message: "Ticket not found or already cancelled." });
@@ -327,34 +302,17 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
         const usersCount = await User.countDocuments();
         const events = await Event.find();
         
-        let totalRevenue = 0;
-        let totalTicketsSold = 0;
-        let eventStats = [];
+        let totalRevenue = 0; let totalTicketsSold = 0; let eventStats = [];
         
         events.forEach(e => {
             const rev = e.ticketsSold * e.price;
             totalTicketsSold += e.ticketsSold;
             totalRevenue += rev;
-            
-            eventStats.push({
-                title: e.title,
-                type: e.eventType,
-                ticketsSold: e.ticketsSold,
-                capacity: e.capacity,
-                revenue: rev
-            });
+            eventStats.push({ title: e.title, type: e.eventType, ticketsSold: e.ticketsSold, capacity: e.capacity, revenue: rev });
         });
 
         eventStats.sort((a, b) => b.revenue - a.revenue);
-
-        res.json({
-            success: true,
-            totalUsers: usersCount,
-            totalEvents: events.length,
-            totalTicketsSold,
-            totalRevenue,
-            eventStats
-        });
+        res.json({ success: true, totalUsers: usersCount, totalEvents: events.length, totalTicketsSold, totalRevenue, eventStats });
     } catch (err) {
         res.status(500).json({ success: false, message: "Error fetching analytics." });
     }
@@ -373,10 +331,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
-        
-        const newEvent = await Event.create({
-            title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl
-        });
+        const newEvent = await Event.create({ title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl });
         
         if (newEvent.eventType === 'Seated') {
             const seatsToCreate = [];
@@ -398,12 +353,8 @@ app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
         const newCapacity = Number(capacity);
 
         if (oldEvent.ticketsSold > 0) {
-            if (oldEvent.eventType !== eventType) {
-                return res.status(400).json({ success: false, message: "Cannot change type after tickets sold." });
-            }
-            if (newCapacity < oldEvent.capacity) {
-                return res.status(400).json({ success: false, message: "Cannot reduce capacity after tickets sold." });
-            }
+            if (oldEvent.eventType !== eventType) return res.status(400).json({ success: false, message: "Cannot change type after tickets sold." });
+            if (newCapacity < oldEvent.capacity) return res.status(400).json({ success: false, message: "Cannot reduce capacity after tickets sold." });
         }
 
         if (eventType === 'Seated') {
@@ -443,6 +394,7 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+// CHANGED: Notice we are using server.listen instead of app.listen now!
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
