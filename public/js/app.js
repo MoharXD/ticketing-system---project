@@ -60,7 +60,6 @@ function handlePossibleForceLogout(data) {
 // 🌍 GLOBAL EVENT REFRESHER (Bulletproof Cache-Busting)
 async function refreshGlobalEvents() {
     try {
-        // FIXED: Added a timestamp to the URL so the browser CANNOT use old cached data
         const timestamp = new Date().getTime();
         const res = await fetch(`/api/events?t=${timestamp}`);
         const freshEvents = await res.json();
@@ -131,7 +130,6 @@ async function softUpdateSeats(eventId) {
         console.error("Error live-updating seats.");
     }
 }
-
 
 if (homeLogo) {
     homeLogo.addEventListener('click', (e) => {
@@ -393,6 +391,22 @@ seatMap.addEventListener('click', (e) => {
         
         document.getElementById('seated-total').innerText = (selectedCount * currentEventPrice);
     }
+});
+
+// ==========================================
+// 🧮 MISSING MATH LOGIC RESTORED HERE
+// ==========================================
+document.getElementById('general-qty').addEventListener('input', (e) => {
+    let qty = parseInt(e.target.value) || 0;
+    const max = parseInt(e.target.max) || 0;
+
+    // Prevent typing a number larger than available tickets
+    if (qty > max) {
+        qty = max;
+        e.target.value = max;
+    }
+
+    document.getElementById('general-total').innerText = (qty * currentEventPrice);
 });
 
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
