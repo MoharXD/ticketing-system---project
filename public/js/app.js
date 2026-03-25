@@ -57,7 +57,38 @@ function handlePossibleForceLogout(data) {
     return false;
 }
 
-// 🌍 GLOBAL EVENT REFRESHER (Bulletproof Cache-Busting)
+// ==========================================
+// ⏱️ THE FRONTEND HEARTBEAT (Auto-Expiration)
+// ==========================================
+// This checks the clock every 10 seconds to shut down expired events live
+function checkEventExpirations() {
+    const now = new Date();
+
+    allEvents.forEach(e => {
+        const isExpired = now > new Date(e.endDate);
+        const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
+
+        // If the event just expired and the button hasn't been disabled yet...
+        if (isExpired && btn && !btn.disabled) {
+            // Instantly lock the button on the home screen
+            btn.disabled = true;
+            btn.innerText = 'Event Ended';
+            btn.classList.replace('btn-outline-primary', 'btn-secondary');
+
+            // If the user is currently inside the booking screen for this exact event, kick them out!
+            if (currentEventId === String(e._id)) {
+                alert("⏳ Time's up! This event has officially ended and is no longer accepting bookings.");
+                homeLogo.click(); // Send them back to the main menu safely
+            }
+        }
+    });
+}
+
+// Start the heartbeat! (Runs every 10,000 milliseconds)
+setInterval(checkEventExpirations, 10000);
+
+
+// 🌍 GLOBAL EVENT REFRESHER
 async function refreshGlobalEvents() {
     try {
         const timestamp = new Date().getTime();
@@ -67,7 +98,7 @@ async function refreshGlobalEvents() {
 
         freshEvents.forEach(e => {
             const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
-            if (btn) {
+            if (btn && !btn.disabled) { // Only update capacity if it hasn't expired
                 btn.setAttribute('data-available', e.capacity - e.ticketsSold);
             }
         });
@@ -93,6 +124,10 @@ async function refreshGlobalEvents() {
                 }
             }
         }
+        
+        // Immediately run the clock check after syncing data
+        checkEventExpirations();
+        
     } catch(err) {
         console.error("Live sync failed", err);
     }
@@ -242,9 +277,23 @@ function displayEvents(events) {
         return;
     }
 
+    const now = new Date();
+
     container.innerHTML = events.map(e => {
         const priceText = `<span class="badge bg-success ms-2 fs-6">₹${e.price || 0}</span>`; 
         const imgHtml = e.imageUrl ? `<img src="${e.imageUrl}" class="event-card-img" alt="${e.title}">` : '';
+        
+        // Check if the event is ALREADY expired when first rendering the page
+        const isExpired = now > new Date(e.endDate);
+        const btnHtml = isExpired 
+            ? `<button class="btn btn-secondary w-100 fw-bold mt-auto select-event-btn py-2" disabled data-id="${e._id}">Event Ended</button>`
+            : `<button class="btn btn-outline-primary w-100 fw-bold mt-auto select-event-btn py-2" 
+                data-id="${e._id}" 
+                data-title="${e.title}" 
+                data-age="${e.ageLimit || 0}"
+                data-type="${e.eventType}"
+                data-price="${e.price || 0}"
+                data-available="${e.capacity - e.ticketsSold}">Select Event</button>`;
 
         return `
         <div class="col-md-6 col-lg-6 mb-4">
@@ -263,13 +312,7 @@ function displayEvents(events) {
                     
                     <p class="card-text text-secondary small mb-4 flex-grow-1">${e.description || "No description provided."}</p>
                     
-                    <button class="btn btn-outline-primary w-100 fw-bold mt-auto select-event-btn py-2" 
-                        data-id="${e._id}" 
-                        data-title="${e.title}" 
-                        data-age="${e.ageLimit || 0}"
-                        data-type="${e.eventType}"
-                        data-price="${e.price || 0}"
-                        data-available="${e.capacity - e.ticketsSold}">Select Event</button>
+                    ${btnHtml}
                 </div>
             </div>
         </div>
@@ -277,7 +320,7 @@ function displayEvents(events) {
 }
 
 document.getElementById('events-container').addEventListener('click', async (e) => {
-    if (e.target.classList.contains('select-event-btn')) {
+    if (e.target.classList.contains('select-event-btn') && !e.target.disabled) {
         const eventId = e.target.getAttribute('data-id');
         const title = e.target.getAttribute('data-title');
         const requiredAge = parseInt(e.target.getAttribute('data-age'));
@@ -393,14 +436,10 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
-// ==========================================
-// 🧮 MISSING MATH LOGIC RESTORED HERE
-// ==========================================
 document.getElementById('general-qty').addEventListener('input', (e) => {
     let qty = parseInt(e.target.value) || 0;
     const max = parseInt(e.target.max) || 0;
 
-    // Prevent typing a number larger than available tickets
     if (qty > max) {
         qty = max;
         e.target.value = max;
