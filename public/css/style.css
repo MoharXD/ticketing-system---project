@@ -2,7 +2,7 @@
 
 /* ==========================================
    CSS CUSTOM PROPERTIES (THE DESIGN SYSTEM)
-   EXPLAIN TO TEACHER: "By storing my colors, borders, and fonts in the :root selector, 
+   "By storing my colors, borders, and fonts in the :root selector, 
    I created a scalable design system. If I want to change the primary brand color from Indigo to Red, 
    I only change one line of code, and every button, border, and badge in the app updates automatically."
    ========================================== */
