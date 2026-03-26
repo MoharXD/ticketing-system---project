@@ -29,7 +29,7 @@ let currentEventPrice = 0;
 let allEvents = []; 
 
 // ==========================================
-// 🔴 THE MASTER LIVE SYNC ENGINE (WebSockets)
+// 🔴 THE LIVE SYNC ENGINE (WebSockets)
 // ==========================================
 const socket = typeof io !== 'undefined' ? io() : null;
 
