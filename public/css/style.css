@@ -260,7 +260,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--dark); letter-spacing: -
 
 /* ==========================================
    CSS STATE TARGETING: DARK MODE FOR ADMIN PANEL
-   EXPLAIN TO TEACHER: "By appending the 'body.bg-dark' selector, I forced 
+   "By appending the 'body.bg-dark' selector, I forced 
    CSS to overwrite the default variables only when the user is on the Admin page. 
    This separates concerns cleanly without needing two separate CSS files."
    ========================================== */
