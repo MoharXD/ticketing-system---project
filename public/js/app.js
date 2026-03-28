@@ -798,14 +798,19 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
     if (adminBtn) adminBtn.remove();
 });
 
-// 🚨 UPDATED INITIALIZATION: Bulletproof catch block to handle Render Cold Starts smoothly
+// 🚨 THE FIX: A bulletproof cold-start handler that won't freeze the UI
 (async function initializeApp() {
     try {
+        // Sets a strict timeout limit. If the server takes longer than 60 seconds to wake up, kill the request.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); 
+
         const timestamp = new Date().getTime();
-        const res = await fetch(`/api/check-session?t=${timestamp}`);
+        const res = await fetch(`/api/check-session?t=${timestamp}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
         
         // If Render returns a 502/504 HTML error page because it's still booting, catch it explicitly!
-        if (!res.ok) throw new Error("Server not fully awake yet.");
+        if (!res.ok) throw new Error("Server returned an error while booting.");
 
         const data = await res.json();
         
@@ -817,7 +822,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
             if (authSection) authSection.classList.remove('d-none');
         }
     } catch (err) {
-        console.error("Initialization caught by Cold Start handler. Showing login screen.", err);
+        console.error("Initialization caught by Cold Start handler or Timeout.", err);
+        // Force the UI to unlock so the user isn't staring at a spinner forever
         if (initialLoader) initialLoader.classList.add('d-none');
         if (authSection) authSection.classList.remove('d-none');
     }
