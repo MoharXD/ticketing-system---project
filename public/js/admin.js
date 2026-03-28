@@ -14,9 +14,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // 🧹 Cleanup: JavaScript injection logic for CBFC dropdown is removed 
-    // because the consolidated dropdown is now handled directly in the HTML file.
-
     loadAnalytics();
     loadEvents();
     loadUsers();
@@ -83,13 +80,6 @@ const updateThemeColorFromImage = (imgSrc) => {
     };
 };
 
-// Listen for direct URL input changes
-document.getElementById('event-image').addEventListener('change', function(e) {
-    if(e.target.value && !e.target.value.startsWith('data:image')) { // Don't trigger if it's base64 from upload
-        updateThemeColorFromImage(e.target.value);
-    }
-});
-
 // Listen for local file upload changes
 document.getElementById('event-poster-file').addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -99,7 +89,7 @@ document.getElementById('event-poster-file').addEventListener('change', function
     const reader = new FileReader();
     reader.onload = function(event) {
         const base64String = event.target.result;
-        // Update the main 'event-image' input with the base64 string for saving to DB
+        // Update the hidden 'event-image' input with the base64 string for saving to DB
         document.getElementById('event-image').value = base64String;
         
         // Run theme extractor on the newly loaded base64 data
@@ -167,7 +157,6 @@ async function loadEvents() {
         }
 
         tbody.innerHTML = events.map(e => {
-            // Updated preview logic to handle both external URLs and long base64 strings cleanly
             let imgHtml = `<div style="width: 50px; height: 50px; background: ${e.themeColor || '#334155'}; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
             if (e.imageUrl) {
                 imgHtml = `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; border: 2px solid ${e.themeColor || '#E23744'};">`;
@@ -335,6 +324,11 @@ function formatForDateTimeLocal(isoString) {
 window.resetEventForm = function() {
     eventForm.reset();
     eventIdInput.value = '';
+    
+    // 🛠️ BUG FIX: Because the image field is now hidden, the native form.reset() ignores it. 
+    // We must manually clear it here to prevent the image from carrying over to the next event creation.
+    document.getElementById('event-image').value = ''; 
+    
     // Reset file upload specifically
     document.getElementById('event-poster-file').value = ''; 
     document.getElementById('event-theme').value = '#E23744';
