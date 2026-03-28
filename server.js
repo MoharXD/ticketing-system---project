@@ -2,7 +2,7 @@
 const express = require('express');         
 const mongoose = require('mongoose');       
 const session = require('express-session'); 
-const MongoStore = require('connect-mongo'); // 🚨 NEW: Persists sessions in MongoDB
+const MongoStore = require('connect-mongo'); 
 const bcrypt = require('bcryptjs');         
 const path = require('path');               
 const http = require('http');               
@@ -20,31 +20,25 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
 
-app.set('trust proxy', 1); // Allows cookies to pass through Render's proxy safely
+app.set('trust proxy', 1); 
 
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-// 🚨 THE FIX: Store sessions in MongoDB so server restarts NEVER log you out!
+// Persist sessions in MongoDB so Render.com sleep cycles don't log you out
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: DB_URI,
-        collectionName: 'sessions', // Creates a new collection in your DB just for logins
-        ttl: 14 * 24 * 60 * 60 // Logins last for 14 days
-    }),
-    cookie: { 
-        secure: false, // Must be false for Render free-tier HTTP proxy handling
-        maxAge: 1000 * 60 * 60 * 24 * 14 
-    } 
+    store: MongoStore.create({ mongoUrl: DB_URI, collectionName: 'sessions', ttl: 14 * 24 * 60 * 60 }),
+    cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 * 14 } 
 }));
 
 mongoose.connect(DB_URI)
     .then(async () => {
         console.log('✅ Connected to MongoDB');
+        // Force Mongoose to sync the new 3-part unique index for the dates
         await User.syncIndexes(); 
         await Seat.syncIndexes();
     })
@@ -126,9 +120,6 @@ app.get('/api/check-session', async (req, res) => {
     } else { res.json({ loggedIn: false }); }
 });
 
-// ==========================================
-// 👤 USER PROFILE 
-// ==========================================
 app.get('/api/profile', verifyActiveUser, async (req, res) => {
     const user = await User.findById(req.session.userId).select('-password'); 
     res.json({ success: true, user });
@@ -157,6 +148,8 @@ app.get('/api/events/:eventId/availability', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
     const event = await Event.findById(req.params.eventId);
+    if (!event) return res.status(404).json({error: "Event not found"});
+    
     const soldForDate = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date });
     res.json({ capacity: event.capacity, sold: soldForDate, available: event.capacity - soldForDate });
 });
@@ -220,7 +213,7 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
         const currentSoldForDate = await Seat.countDocuments({ eventId, bookingDate: selectedDate });
 
         if (currentSoldForDate + requestedQty > event.capacity) {
-            return res.status(400).json({ success: false, message: "Not enough tickets available for this specific date." });
+            return res.status(400).json({ success: false, message: "Not enough tickets available for this date." });
         }
 
         const generalTickets = [];
@@ -347,5 +340,4 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         res.json({ success: true, message: "User and tickets deleted." });
     } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
-
 server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
