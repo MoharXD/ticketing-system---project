@@ -101,7 +101,8 @@
             
             if (data.success) {
                 if (data.isAdmin) {
-                    window.location.href = 'index.html'; 
+                    // 🚨 FIXED: This now redirects properly to the Admin Dashboard
+                    window.location.href = 'admin.html'; 
                 } else {
                     alert("Access Denied: You are a normal user, not an Admin.");
                     await fetch('/api/logout', { method: 'POST' }); 

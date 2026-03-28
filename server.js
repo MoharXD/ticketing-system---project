@@ -2,6 +2,7 @@
 const express = require('express');         
 const mongoose = require('mongoose');       
 const session = require('express-session'); 
+const MongoStore = require('connect-mongo'); // 🚨 NEW: Persists sessions in MongoDB
 const bcrypt = require('bcryptjs');         
 const path = require('path');               
 const http = require('http');               
@@ -17,19 +18,30 @@ const server = http.createServer(app);
 const io = new Server(server);              
 
 const PORT = process.env.PORT || 3000;
+const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
+
+app.set('trust proxy', 1); // Allows cookies to pass through Render's proxy safely
 
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); 
 
+// 🚨 THE FIX: Store sessions in MongoDB so server restarts NEVER log you out!
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } 
+    store: MongoStore.create({
+        mongoUrl: DB_URI,
+        collectionName: 'sessions', // Creates a new collection in your DB just for logins
+        ttl: 14 * 24 * 60 * 60 // Logins last for 14 days
+    }),
+    cookie: { 
+        secure: false, // Must be false for Render free-tier HTTP proxy handling
+        maxAge: 1000 * 60 * 60 * 24 * 14 
+    } 
 }));
 
-const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
 mongoose.connect(DB_URI)
     .then(async () => {
         console.log('✅ Connected to MongoDB');
@@ -141,7 +153,6 @@ app.get('/api/events', async (req, res) => {
     res.json(events);
 });
 
-// GET DAILY AVAILABILITY 
 app.get('/api/events/:eventId/availability', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
@@ -150,7 +161,6 @@ app.get('/api/events/:eventId/availability', async (req, res) => {
     res.json({ capacity: event.capacity, sold: soldForDate, available: event.capacity - soldForDate });
 });
 
-// DYNAMICALLY GENERATE SEAT MAP FOR A SPECIFIC DATE
 app.get('/api/seats/:eventId', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
@@ -182,16 +192,14 @@ app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
     try {
         const event = await Event.findById(eventId);
         
-        // Prepare new seat documents (Inserting directly instead of updating pre-populated ones)
         const seatsToInsert = seats.map(seatId => ({
             eventId, seatId, bookingDate: selectedDate, status: 'Booked',
             bookedBy: req.session.username, userId: req.session.userId
         }));
 
-        // ordered: false allows parallel inserts, and strict unique index prevents race conditions
         await Seat.insertMany(seatsToInsert, { ordered: true });
 
-        event.ticketsSold += seats.length; // Analytics total
+        event.ticketsSold += seats.length; 
         await event.save();
         
         io.emit('seatUpdate', { eventId: eventId, date: selectedDate }); 
@@ -246,7 +254,7 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
             return {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
-                bookingDate: seat.bookingDate, // Returns specific booked date
+                bookingDate: seat.bookingDate, 
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
                 seatId: seat.seatId
@@ -261,7 +269,6 @@ app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
     try {
         const event = await Event.findById(eventId);
         
-        // Since we no longer pre-populate, cancelling a ticket just deletes the Seat record to free it up
         const result = await Seat.findOneAndDelete({ 
             eventId, seatId, bookingDate, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
         });
