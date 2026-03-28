@@ -27,6 +27,10 @@ let currentEventType = null;
 let currentSelectedDate = null; 
 let allEvents = []; 
 
+// --- NEW PAYMENT VARIABLES ---
+let pendingPaymentData = null;
+let paymentModalInstance = null;
+
 function hexToRgbA(hex, alpha) {
     let c;
     if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
@@ -294,7 +298,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         seatedView.classList.add('d-none');
         generalView.classList.add('d-none');
         
-        // --- RENDER DYNAMIC DISTRICT DATE PILLS ---
         const dates = getDatesInRange(eventStart, eventEnd);
         const datesContainer = document.getElementById('date-pills');
         document.getElementById('date-selection-container').classList.remove('d-none');
@@ -349,7 +352,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
     }
 });
 
-// LOAD SPECIFIC DATA FOR SELECTED DATE
 async function loadEventDataForDate(date, isSoftUpdate = false) {
     try {
         const timestamp = new Date().getTime();
@@ -379,7 +381,7 @@ async function loadEventDataForDate(date, isSoftUpdate = false) {
             } else {
                 if(qtyInput.value == 0 || qtyInput.value > availableTickets) qtyInput.value = 1;
                 qtyInput.disabled = false; bookBtn.disabled = false;
-                bookBtn.innerText = "Secure Tickets Now";
+                bookBtn.innerText = "Proceed to Pay";
                 document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice); 
             }
         }
@@ -459,83 +461,112 @@ document.getElementById('general-qty').addEventListener('blur', (e) => {
     }
 });
 
-// 🚨 BUG FIX: Bulletproof Double-Click Guard & Reliable Recovery
-document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
+// ==========================================
+// 💳 SECURE CHECKOUT FLOW
+// ==========================================
+
+// 1. Intercept Seated Bookings and open Modal
+document.getElementById('book-seats-btn').addEventListener('click', (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0 || !currentSelectedDate) return;
 
-    const btn = e.target;
-    if (btn.dataset.processing === "true") return; // Blocks spam clicks
-    btn.dataset.processing = "true";
+    const totalAmount = selectedSeats.length * currentEventPrice;
+    
+    pendingPaymentData = {
+        type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate, amount: totalAmount
+    };
 
-    const originalText = "Confirm Seats"; 
-    btn.innerText = 'Processing...'; 
-    btn.disabled = true;
-
-    try {
-        const res = await fetch('/api/events/book-seats', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate })
-        });
-        const data = await res.json();
-        if (handlePossibleForceLogout(data)) return;
-
-        if (data.success) {
-            document.getElementById('seated-total').innerText = '0'; 
-            await renderSeatsForEvent(currentEventId, currentSelectedDate);
-            setTimeout(() => alert(data.message), 10); 
-        } else {
-            await loadEventDataForDate(currentSelectedDate, true); 
-            setTimeout(() => alert(data.message), 10);
-        }
-    } catch (err) { 
-        alert("Booking failed. Please check your internet connection.");
-    } finally { 
-        btn.innerText = originalText; 
-        btn.disabled = document.querySelectorAll('.bms-seat.selected').length === 0; 
-        btn.dataset.processing = "false"; // Unlocks the button logic safely
-    }
+    document.getElementById('payment-amount-display').innerText = totalAmount;
+    if(!paymentModalInstance) paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
+    paymentModalInstance.show();
 });
 
-document.getElementById('book-general-btn').addEventListener('click', async (e) => {
+// 2. Intercept General Bookings and open Modal
+document.getElementById('book-general-btn').addEventListener('click', (e) => {
     const qtyInput = document.getElementById('general-qty');
     const qty = parseInt(qtyInput.value); const max = parseInt(qtyInput.max);
     
     if (qty > max) { alert("You cannot book more than the available tickets!"); return; }
     if (!currentSelectedDate) { alert("Please select a date first."); return; }
 
-    const btn = e.target; 
+    const totalAmount = qty * currentEventPrice;
+
+    pendingPaymentData = {
+        type: 'general', eventId: currentEventId, qty: qty, selectedDate: currentSelectedDate, amount: totalAmount
+    };
+
+    document.getElementById('payment-amount-display').innerText = totalAmount;
+    if(!paymentModalInstance) paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
+    paymentModalInstance.show();
+});
+
+// 3. The actual API call now lives securely inside the Payment Modal
+document.getElementById('confirm-payment-btn').addEventListener('click', async (e) => {
+    if(!pendingPaymentData) return;
+
+    const btn = e.target;
     if (btn.dataset.processing === "true") return;
     btn.dataset.processing = "true";
 
-    const originalText = "Secure Tickets Now"; 
-    btn.innerText = 'Processing...'; 
+    const originalText = "Pay Securely Now";
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
     btn.disabled = true;
 
-    try {
-        const res = await fetch('/api/events/book-general', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: currentEventId, qty: qty, selectedDate: currentSelectedDate })
-        });
-        const data = await res.json();
-        if (handlePossibleForceLogout(data)) return;
+    // Simulate a 1.5-second connection delay to a real banking gateway
+    setTimeout(async () => {
+        try {
+            let endpoint = '';
+            let payload = {};
 
-        if (data.success) {
-            qtyInput.value = 1; document.getElementById('general-total').innerText = currentEventPrice;
-            await loadEventDataForDate(currentSelectedDate, true); 
-            setTimeout(() => alert(data.message), 10);
-        } else {
-            await loadEventDataForDate(currentSelectedDate, true);
-            setTimeout(() => alert(data.message), 10);
+            if (pendingPaymentData.type === 'seated') {
+                endpoint = '/api/events/book-seats';
+                payload = { eventId: pendingPaymentData.eventId, seats: pendingPaymentData.seats, selectedDate: pendingPaymentData.selectedDate };
+            } else {
+                endpoint = '/api/events/book-general';
+                payload = { eventId: pendingPaymentData.eventId, qty: pendingPaymentData.qty, selectedDate: pendingPaymentData.selectedDate };
+            }
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (handlePossibleForceLogout(data)) {
+                paymentModalInstance.hide();
+                return;
+            }
+
+            if (data.success) {
+                paymentModalInstance.hide();
+                
+                if(pendingPaymentData.type === 'seated') {
+                    document.getElementById('seated-total').innerText = '0'; 
+                    await renderSeatsForEvent(pendingPaymentData.eventId, pendingPaymentData.selectedDate);
+                } else {
+                    document.getElementById('general-qty').value = 1; 
+                    document.getElementById('general-total').innerText = currentEventPrice;
+                    await loadEventDataForDate(pendingPaymentData.selectedDate, true); 
+                }
+                
+                // Delay alert slightly so the modal closes smoothly first
+                setTimeout(() => alert("✅ Payment Successful!\n\n" + data.message), 400);
+            } else {
+                paymentModalInstance.hide();
+                await loadEventDataForDate(pendingPaymentData.selectedDate, true); 
+                setTimeout(() => alert("❌ Booking Failed: " + data.message), 400);
+            }
+        } catch (err) { 
+            paymentModalInstance.hide();
+            alert("Network error during payment processing.");
+        } finally { 
+            btn.innerText = originalText; 
+            btn.disabled = false; 
+            btn.dataset.processing = "false";
+            pendingPaymentData = null; 
         }
-    } catch (err) { alert("Booking failed.");
-    } finally { 
-        btn.innerText = originalText; 
-        btn.disabled = false; 
-        btn.dataset.processing = "false";
-    }
+    }, 1500); 
 });
 
 
