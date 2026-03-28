@@ -93,13 +93,32 @@
                             <label class="form-label">Event Title</label>
                             <input type="text" id="event-title" class="form-control" required>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-warning">Poster/Image URL</label>
-                            <input type="text" id="event-image" class="form-control" placeholder="https://..." required>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label text-primary">Card Color Theme</label>
+                            <input type="color" id="event-theme" class="form-control form-control-color w-100" value="#E23744" required>
                         </div>
-                        <div class="col-md-3">
+                        
+                        <div class="col-md-4">
                             <label class="form-label text-danger">CBFC Rating</label>
-                            <input type="number" id="event-age" class="form-control" value="0" min="0" required>
+                            <select id="event-age" class="form-select" required>
+                                <option value="0">U (Unrestricted / All Ages)</option>
+                                <option value="7">UA 7+ (Parental Guidance Advised)</option>
+                                <option value="13">UA 13+ (Parental Guidance Advised)</option>
+                                <option value="16">UA 16+ (Parental Guidance Advised)</option>
+                                <option value="18">A (Adults Only 18+)</option>
+                                <option value="99">S (Specialized Audience)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <label class="form-label text-warning">Event Poster Image</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted">URL</span>
+                                <input type="text" id="event-image" class="form-control" placeholder="https://..." required>
+                                <span class="input-group-text bg-light text-muted">OR Upload File</span>
+                                <input type="file" id="event-poster-file" class="form-control" accept="image/*">
+                            </div>
                         </div>
 
                         <div class="col-md-4">
