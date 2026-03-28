@@ -8,25 +8,20 @@ const http = require('http');
 const { Server } = require('socket.io');    
 require('dotenv').config();                 
 
-// Import our Database Blueprints (Models)
 const User = require('./models/User'); 
 const Event = require('./models/Event');
 const Seat = require('./models/Seat');
 
-// --- 2. SERVER INITIALIZATION ---
 const app = express();
 const server = http.createServer(app);      
 const io = new Server(server);              
 
 const PORT = process.env.PORT || 3000;
 
-// --- 3. MIDDLEWARE CONFIGURATION ---
-// 🛠️ BUG FIX: Increased payload limit to 50mb to allow large Base64 image strings
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-// Session Config: Gives every user a unique 'cookie' when they log in to track their state
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
@@ -34,7 +29,6 @@ app.use(session({
     cookie: { secure: false } 
 }));
 
-// --- 4. DATABASE CONNECTION ---
 const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
 mongoose.connect(DB_URI)
     .then(async () => {
@@ -44,17 +38,12 @@ mongoose.connect(DB_URI)
     })
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// ==========================================
-// 🛡️ SECURITY MIDDLEWARE
-// ==========================================
-
 const verifyActiveUser = async (req, res, next) => {
     if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
-    
     const user = await User.findById(req.session.userId);
     if (!user) {
         req.session.destroy(); 
-        return res.status(401).json({ success: false, forceLogout: true, message: "Your account has been deleted by an administrator." });
+        return res.status(401).json({ success: false, forceLogout: true, message: "Your account has been deleted." });
     }
     next(); 
 };
@@ -65,26 +54,21 @@ const requireAdmin = (req, res, next) => {
 };
 
 // ==========================================
-// 🔑 AUTHENTICATION ROUTES (Login / Signup)
+// 🔑 AUTHENTICATION ROUTES
 // ==========================================
-
 app.post('/api/signup', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ success: false, message: "Fields required." });
-
         const cleanUsername = username.trim();
         const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
         if (existingUser) return res.status(400).json({ success: false, message: "Username taken." });
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: false });
-        
         io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Account created! You can now log in." });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server error." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Server error." }); }
 });
 
 app.post('/api/admin/signup', async (req, res) => {
@@ -99,20 +83,15 @@ app.post('/api/admin/signup', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: true });
-        
         io.emit('dashboardUpdate');
         res.json({ success: true, message: "Admin account created successfully." });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server error." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Server error." }); }
 });
 
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const cleanUsername = username.trim();
-        
-        const user = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } });
         if (!user) return res.status(404).json({ success: false, notFound: true, message: "User not found." });
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -122,33 +101,22 @@ app.post('/api/login', async (req, res) => {
         req.session.username = user.username;
         req.session.isAdmin = user.isAdmin;
         res.json({ success: true, username: user.username, isAdmin: user.isAdmin });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server error." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Server error." }); }
 });
 
-app.post('/api/logout', (req, res) => {
-    req.session.destroy(); 
-    res.json({ success: true });
-});
+app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 
 app.get('/api/check-session', async (req, res) => {
     if (req.session.userId) {
         const user = await User.findById(req.session.userId);
-        if(!user) {
-            req.session.destroy();
-            return res.json({ loggedIn: false });
-        }
+        if(!user) { req.session.destroy(); return res.json({ loggedIn: false }); }
         res.json({ loggedIn: true, username: req.session.username, isAdmin: req.session.isAdmin });
-    } else {
-        res.json({ loggedIn: false });
-    }
+    } else { res.json({ loggedIn: false }); }
 });
 
 // ==========================================
-// 👤 USER PROFILE (Protected Routes)
+// 👤 USER PROFILE 
 // ==========================================
-
 app.get('/api/profile', verifyActiveUser, async (req, res) => {
     const user = await User.findById(req.session.userId).select('-password'); 
     res.json({ success: true, user });
@@ -158,86 +126,101 @@ app.put('/api/profile', verifyActiveUser, async (req, res) => {
     try {
         const { username, fullName, email, phone, dob, address } = req.body;
         const user = await User.findById(req.session.userId);
-        
-        user.username = username.trim();
-        user.fullName = fullName;
-        user.email = email;
-        user.phone = phone;
-        user.dob = dob;
-        user.address = address;
+        user.username = username.trim(); user.fullName = fullName; user.email = email; user.phone = phone; user.dob = dob; user.address = address;
         await user.save();
-        
         req.session.username = user.username; 
         res.json({ success: true, message: "Profile updated successfully!", newUsername: user.username });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error updating profile." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Error updating profile." }); }
 });
 
 // ==========================================
-// 🎟️ PUBLIC EVENTS & SEATS
+// 🎟️ PUBLIC EVENTS & DYNAMIC SEATS
 // ==========================================
-
 app.get('/api/events', async (req, res) => {
     const events = await Event.find().sort({ startDate: 1 }); 
     res.json(events);
 });
 
+// GET DAILY AVAILABILITY 
+app.get('/api/events/:eventId/availability', async (req, res) => {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({error: "Date required"});
+    const event = await Event.findById(req.params.eventId);
+    const soldForDate = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date });
+    res.json({ capacity: event.capacity, sold: soldForDate, available: event.capacity - soldForDate });
+});
+
+// DYNAMICALLY GENERATE SEAT MAP FOR A SPECIFIC DATE
 app.get('/api/seats/:eventId', async (req, res) => {
-    const seats = await Seat.find({ eventId: req.params.eventId });
-    res.json(seats);
+    const { date } = req.query;
+    if (!date) return res.status(400).json({error: "Date required"});
+    
+    const event = await Event.findById(req.params.eventId);
+    if (!event) return res.status(404).json({error: "Event not found"});
+
+    const bookedSeats = await Seat.find({ eventId: req.params.eventId, bookingDate: date });
+    const bookedSeatIds = bookedSeats.map(s => s.seatId);
+    
+    const allSeats = [];
+    for(let i=1; i<=event.capacity; i++) {
+        const sId = `S${i}`;
+        allSeats.push({
+            seatId: sId,
+            status: bookedSeatIds.includes(sId) ? 'Booked' : 'Available'
+        });
+    }
+    res.json(allSeats);
 });
 
 // ==========================================
 // 🛒 CORE BOOKING LOGIC
 // ==========================================
-
 app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
-    const { eventId, seats } = req.body; 
+    const { eventId, seats, selectedDate } = req.body; 
+    if(!selectedDate) return res.status(400).json({success: false, message: "Date required."});
+
     try {
         const event = await Event.findById(eventId);
-        if (!event) return res.status(404).json({ success: false, message: "Event not found" });
+        
+        // Prepare new seat documents (Inserting directly instead of updating pre-populated ones)
+        const seatsToInsert = seats.map(seatId => ({
+            eventId, seatId, bookingDate: selectedDate, status: 'Booked',
+            bookedBy: req.session.username, userId: req.session.userId
+        }));
 
-        const result = await Seat.updateMany(
-            { eventId: eventId, seatId: { $in: seats }, status: 'Available' },
-            { $set: { status: 'Booked', bookedBy: req.session.username, userId: req.session.userId } } 
-        );
+        // ordered: false allows parallel inserts, and strict unique index prevents race conditions
+        await Seat.insertMany(seatsToInsert, { ordered: true });
 
-        if (result.modifiedCount !== seats.length) {
-            return res.status(400).json({ success: false, message: "Some seats were already taken. Try again." });
-        }
-
-        event.ticketsSold += seats.length;
+        event.ticketsSold += seats.length; // Analytics total
         await event.save();
         
-        io.emit('seatUpdate', { eventId: eventId }); 
+        io.emit('seatUpdate', { eventId: eventId, date: selectedDate }); 
         io.emit('dashboardUpdate'); 
-        io.emit('eventUpdate'); 
-
-        res.json({ success: true, message: `Successfully booked ${seats.length} seat(s)!` });
+        res.json({ success: true, message: `Successfully booked ${seats.length} seat(s) for ${selectedDate}!` });
     } catch (err) {
+        if (err.code === 11000) return res.status(400).json({ success: false, message: "One or more seats were snatched by someone else! Please refresh." });
         res.status(500).json({ success: false, message: "Booking error." });
     }
 });
 
 app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
-    const { eventId, qty } = req.body;
+    const { eventId, qty, selectedDate } = req.body;
     const requestedQty = Number(qty);
 
     try {
-        const event = await Event.findOneAndUpdate(
-            { _id: eventId, $expr: { $gte: [ "$capacity", { $add: ["$ticketsSold", requestedQty] } ] } },
-            { $inc: { ticketsSold: requestedQty } }, 
-            { new: true }
-        );
+        const event = await Event.findById(eventId);
+        const currentSoldForDate = await Seat.countDocuments({ eventId, bookingDate: selectedDate });
 
-        if (!event) return res.status(400).json({ success: false, message: "Not enough tickets available or event not found." });
+        if (currentSoldForDate + requestedQty > event.capacity) {
+            return res.status(400).json({ success: false, message: "Not enough tickets available for this specific date." });
+        }
 
         const generalTickets = [];
         for(let i=0; i<requestedQty; i++) {
             generalTickets.push({
                 eventId: event._id,
                 seatId: `GA-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${i+1}`, 
+                bookingDate: selectedDate,
                 status: 'Booked',
                 bookedBy: req.session.username,
                 userId: req.session.userId 
@@ -245,221 +228,117 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
         }
         await Seat.insertMany(generalTickets);
 
-        io.emit('seatUpdate', { eventId: eventId });
-        io.emit('dashboardUpdate'); 
-        io.emit('eventUpdate'); 
+        event.ticketsSold += requestedQty;
+        await event.save();
 
-        res.json({ success: true, message: `Successfully booked ${requestedQty} ticket(s)!` });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Booking error." });
-    }
+        io.emit('seatUpdate', { eventId: eventId, date: selectedDate });
+        io.emit('dashboardUpdate'); 
+
+        res.json({ success: true, message: `Successfully booked ${requestedQty} ticket(s) for ${selectedDate}!` });
+    } catch (err) { res.status(500).json({ success: false, message: "Booking error." }); }
 });
 
 app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
     try {
-        const mySeats = await Seat.find({ 
-            $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
-        }).populate('eventId');
-        
+        const mySeats = await Seat.find({ $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }] }).populate('eventId');
         const formattedTickets = mySeats.map(seat => {
             if (!seat.eventId) return null; 
             return {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
-                startDate: seat.eventId.startDate,
+                bookingDate: seat.bookingDate, // Returns specific booked date
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
-
         res.json(formattedTickets);
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Failed to load tickets." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Failed to load tickets." }); }
 });
 
 app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
-    const { eventId, seatId } = req.body;
+    const { eventId, seatId, bookingDate } = req.body;
     try {
         const event = await Event.findById(eventId);
-        if (!event) return res.status(404).json({ success: false, message: "Event not found" });
-
-        let result;
-        if (seatId.startsWith('GA-')) {
-            result = await Seat.findOneAndDelete({ 
-                eventId, seatId, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
-            });
-        } else {
-            result = await Seat.findOneAndUpdate(
-                { eventId, seatId, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }] },
-                { $set: { status: 'Available', bookedBy: null, userId: null } }
-            );
-        }
+        
+        // Since we no longer pre-populate, cancelling a ticket just deletes the Seat record to free it up
+        const result = await Seat.findOneAndDelete({ 
+            eventId, seatId, bookingDate, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
+        });
 
         if (result) {
             event.ticketsSold = Math.max(0, event.ticketsSold - 1);
             await event.save();
             
-            io.emit('seatUpdate', { eventId: eventId });
+            io.emit('seatUpdate', { eventId: eventId, date: bookingDate });
             io.emit('dashboardUpdate');
-            io.emit('eventUpdate'); 
-            
             res.json({ success: true, message: "Booking cancelled successfully." });
         } else {
             res.status(400).json({ success: false, message: "Ticket not found or already cancelled." });
         }
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error cancelling booking." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Error cancelling booking." }); }
 });
 
 // ==========================================
 // 🛠️ ADMIN ROUTES
 // ==========================================
-
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const usersCount = await User.countDocuments();
         const events = await Event.find();
         
         let totalRevenue = 0; let totalTicketsSold = 0; let eventStats = [];
-        
         events.forEach(e => {
             const rev = e.ticketsSold * e.price;
-            totalTicketsSold += e.ticketsSold;
-            totalRevenue += rev;
+            totalTicketsSold += e.ticketsSold; totalRevenue += rev;
             eventStats.push({ title: e.title, type: e.eventType, ticketsSold: e.ticketsSold, capacity: e.capacity, revenue: rev });
         });
-
         eventStats.sort((a, b) => b.revenue - a.revenue);
         res.json({ success: true, totalUsers: usersCount, totalEvents: events.length, totalTicketsSold, totalRevenue, eventStats });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error fetching analytics." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Error fetching analytics." }); }
 });
 
-app.get('/api/admin/events', requireAdmin, async (req, res) => {
-    const events = await Event.find().sort({ startDate: -1 });
-    res.json(events);
-});
-
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
-    const users = await User.find().select('-password');
-    res.json(users);
-});
+app.get('/api/admin/events', requireAdmin, async (req, res) => { res.json(await Event.find().sort({ startDate: -1 })); });
+app.get('/api/admin/users', requireAdmin, async (req, res) => { res.json(await User.find().select('-password')); });
 
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl, themeColor } = req.body;
-        const newEvent = await Event.create({ title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl, themeColor });
-        
-        if (newEvent.eventType === 'Seated') {
-            const seatsToCreate = [];
-            for (let i = 1; i <= newEvent.capacity; i++) {
-                seatsToCreate.push({ eventId: newEvent._id, seatId: `S${i}` });
-            }
-            await Seat.insertMany(seatsToCreate);
-        }
-        
-        io.emit('eventUpdate'); 
-        io.emit('dashboardUpdate'); 
+        await Event.create({ title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl, themeColor });
+        io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error creating event." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Error creating event." }); }
 });
 
 app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
-    try {
-        const oldEvent = await Event.findById(req.params.id);
-        const { eventType, capacity, imageUrl, themeColor } = req.body; 
-        const newCapacity = Number(capacity);
-
-        if (oldEvent.ticketsSold > 0) {
-            if (oldEvent.eventType !== eventType) return res.status(400).json({ success: false, message: "Cannot change type after tickets sold." });
-            if (newCapacity < oldEvent.capacity) return res.status(400).json({ success: false, message: "Cannot reduce capacity after tickets sold." });
-        }
-
-        if (eventType === 'Seated') {
-            const currentSeatCount = await Seat.countDocuments({ eventId: oldEvent._id });
-            if (newCapacity > currentSeatCount) {
-                const seatsToCreate = [];
-                for (let i = currentSeatCount + 1; i <= newCapacity; i++) {
-                    seatsToCreate.push({ eventId: oldEvent._id, seatId: `S${i}` });
-                }
-                await Seat.insertMany(seatsToCreate);
-            }
-        }
-
-        await Event.findByIdAndUpdate(req.params.id, req.body);
-        
-        io.emit('eventUpdate');
-        io.emit('seatUpdate', { eventId: req.params.id });
-        io.emit('dashboardUpdate'); 
-        res.json({ success: true, message: "Event updated successfully." });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error updating event." });
-    }
+    try { await Event.findByIdAndUpdate(req.params.id, req.body); io.emit('eventUpdate'); io.emit('dashboardUpdate'); res.json({ success: true, message: "Event updated successfully." }); }
+    catch (err) { res.status(500).json({ success: false, message: "Error updating event." }); }
 });
 
 app.delete('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try {
         await Event.findByIdAndDelete(req.params.id);
         await Seat.deleteMany({ eventId: req.params.id }); 
-        
-        io.emit('eventUpdate');
-        io.emit('dashboardUpdate');
+        io.emit('eventUpdate'); io.emit('dashboardUpdate');
         res.json({ success: true, message: "Event deleted." });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error deleting event." });
-    }
+    } catch (err) { res.status(500).json({ success: false, message: "Error deleting event." }); }
 });
 
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     try {
         const userId = req.params.id;
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
         const userSeats = await Seat.find({ userId: userId });
-
         if (userSeats.length > 0) {
             const eventCounts = {};
-            userSeats.forEach(seat => {
-                eventCounts[seat.eventId] = (eventCounts[seat.eventId] || 0) + 1;
-            });
-
-            for (const eventId in eventCounts) {
-                await Event.findByIdAndUpdate(eventId, { $inc: { ticketsSold: -eventCounts[eventId] } });
-            }
-
-            await Seat.deleteMany({ userId: userId, seatId: { $regex: /^GA-/ } });
-            await Seat.updateMany(
-                { userId: userId, seatId: { $not: { $regex: /^GA-/ } } },
-                { $set: { status: 'Available', bookedBy: null, userId: null } }
-            );
-
-            for (const eventId in eventCounts) {
-                io.emit('seatUpdate', { eventId: eventId });
-            }
+            userSeats.forEach(seat => { eventCounts[seat.eventId] = (eventCounts[seat.eventId] || 0) + 1; });
+            for (const eventId in eventCounts) { await Event.findByIdAndUpdate(eventId, { $inc: { ticketsSold: -eventCounts[eventId] } }); }
+            await Seat.deleteMany({ userId: userId });
+            for (const eventId in eventCounts) { io.emit('seatUpdate', { eventId: eventId }); }
         }
-
         await User.findByIdAndDelete(userId); 
-        
-        io.emit('dashboardUpdate');
-        io.emit('eventUpdate'); 
-        res.json({ success: true, message: "User and their booked tickets were deleted successfully." });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error deleting user." });
-    }
+        io.emit('dashboardUpdate'); io.emit('eventUpdate'); 
+        res.json({ success: true, message: "User and tickets deleted." });
+    } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
 
-// ==========================================
-// 🚀 SERVER STARTUP
-// ==========================================
-
-// 🚨 THE FIX: Explicitly bind the server to '0.0.0.0' so Render.com's port scanner can see it! 🚨
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT} bound to 0.0.0.0`);
-});
+server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
