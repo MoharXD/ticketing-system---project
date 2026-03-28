@@ -1,16 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-/* ==========================================
-   DISTRICT BY ZOMATO - DESIGN SYSTEM
-   ========================================== */
 :root {
-    /* Brand Colors */
+    /* DYNAMIC VARIABLES (Controlled by JS based on Admin input) */
     --brand-primary: #E23744; 
-    --brand-hover: #C92A36;
+    --brand-glow: rgba(226, 55, 68, 0.35);
+    --brand-glow-light: rgba(226, 55, 68, 0.15);
+    
+    /* System Colors */
     --success: #1db954;
     --warning: #f59e0b;
-    
-    /* Light Mode */
     --bg-light: #F4F4F5;
     --surface-light: #FFFFFF;
     --text-main: #18181B;
@@ -33,70 +31,30 @@
     --font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-family); background-color: var(--bg-light); color: var(--text-main); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 
-body {
-    font-family: var(--font-family);
-    background-color: var(--bg-light);
-    color: var(--text-main);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-}
-
-/* ==========================================
-   TYPOGRAPHY & UTILITIES
-   ========================================== */
 h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
-.text-primary { color: var(--brand-primary) !important; }
+
+/* The title that changes color when clicked! */
+#selected-event-title, .text-primary { color: var(--brand-primary) !important; }
+
 .text-success { color: var(--success) !important; }
 .text-warning { color: var(--warning) !important; }
 .text-muted { color: var(--text-muted) !important; }
 
-/* ==========================================
-   NAVIGATION BAR
-   ========================================== */
-.navbar {
-    background-color: rgba(24, 24, 27, 0.9) !important;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    padding: 16px 24px;
-}
-.navbar-brand { 
-    font-size: 1.25rem; 
-    font-weight: 800; 
-    color: white !important; 
-    letter-spacing: -0.5px;
-}
-.navbar.bg-warning {
-    background-color: var(--warning) !important;
-}
-.navbar.bg-warning .navbar-brand {
-    color: var(--bg-dark) !important;
-}
+.navbar { background-color: rgba(24, 24, 27, 0.9) !important; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 16px 24px; }
+.navbar-brand { font-size: 1.25rem; font-weight: 800; color: white !important; letter-spacing: -0.5px; }
+.navbar.bg-warning { background-color: var(--warning) !important; }
+.navbar.bg-warning .navbar-brand { color: var(--bg-dark) !important; }
 
-/* ==========================================
-   BUTTONS (DISTRICT PILL STYLE)
-   ========================================== */
-.btn {
-    border-radius: var(--radius-pill);
-    font-weight: 700;
-    padding: 12px 24px;
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    border: none;
-}
+.btn { border-radius: var(--radius-pill); font-weight: 700; padding: 12px 24px; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 0.3px; text-transform: uppercase; font-size: 0.85rem; border: none; }
 .btn:active { transform: scale(0.96); }
 .btn-sm { padding: 8px 16px; font-size: 0.75rem; }
 
-.btn-primary { background-color: var(--brand-primary); color: white; }
-.btn-primary:hover { background-color: var(--brand-hover); color: white; transform: translateY(-1px); }
+/* DYNAMIC BUTTON COLORING */
+.btn-primary { background-color: var(--brand-primary); color: white; box-shadow: 0 4px 15px var(--brand-glow); }
+.btn-primary:hover { filter: brightness(0.9); color: white; transform: translateY(-1px); }
 
 .btn-success { background-color: var(--success); color: white; }
 .btn-warning { background-color: var(--warning); color: #000; }
@@ -107,179 +65,59 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 .btn-outline-primary { border: 2px solid var(--brand-primary); color: var(--brand-primary); background: transparent; }
 .btn-outline-primary:hover { background-color: var(--brand-primary); color: white; }
 
-.badge {
-    padding: 6px 12px;
-    border-radius: var(--radius-pill);
-    font-weight: 800;
-    font-size: 0.75rem;
-}
+.badge { padding: 6px 12px; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem; }
 
-/* ==========================================
-   FORMS & INPUTS (LIGHT MODE)
-   ========================================== */
-.form-label {
-    font-weight: 700;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-}
-.form-control, .form-select {
-    border-radius: var(--radius-md);
-    border: 2px solid var(--border-light);
-    padding: 14px 18px;
-    font-size: 1rem;
-    font-weight: 600;
-    background-color: var(--bg-light);
-    color: var(--text-main);
-    transition: all 0.2s ease;
-}
-.form-control:focus, .form-select:focus { 
-    background-color: var(--surface-light);
-    border-color: var(--brand-primary);
-    box-shadow: 0 0 0 4px rgba(226, 55, 68, 0.15); 
-    outline: none;
-}
+.form-label { font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.form-control, .form-select { border-radius: var(--radius-md); border: 2px solid var(--border-light); padding: 14px 18px; font-size: 1rem; font-weight: 600; background-color: var(--bg-light); color: var(--text-main); transition: all 0.2s ease; }
+.form-control:focus, .form-select:focus { background-color: var(--surface-light); border-color: var(--brand-primary); box-shadow: 0 0 0 4px var(--brand-glow-light); outline: none; }
 
-/* ==========================================
-   MODULAR CARDS (PUBLIC SITE)
-   ========================================== */
-.card {
-    background-color: var(--surface-light);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
+.card { background-color: var(--surface-light); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: 0 4px 20px rgba(0,0,0,0.03); overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
 .event-card { cursor: pointer; }
-.event-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
-}
-.event-card-img {
-    width: 100%;
-    height: 240px; 
-    object-fit: cover;
-}
+.event-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+.event-card-img { width: 100%; height: 240px; object-fit: cover; }
 
-/* ==========================================
-   SEAT SELECTION MATRIX
-   ========================================== */
 #seated-view { background: transparent; box-shadow: none; }
-.bms-seat {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px; 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 700;
-    background-color: var(--surface-light);
-    border: 2px solid var(--border-light); 
-    color: var(--text-muted);
-    cursor: pointer;
-    margin: 0 4px;
-    transition: all 0.2s ease;
-}
-.bms-seat:hover:not(.disabled) {
-    border-color: var(--brand-primary);
-    color: var(--brand-primary);
-    transform: scale(1.1);
-}
-.bms-seat.selected {
-    background-color: var(--brand-primary);
-    color: white;
-    border-color: var(--brand-primary);
-    transform: scale(1.1);
-}
-.bms-seat.booked {
-    border-color: transparent;
-    background-color: var(--bg-light);
-    color: #cbd5e1;
-    pointer-events: none; 
-}
 
-/* ==========================================
-   🚨 BUG FIXES: DARK MODE ADMIN PANEL 🚨
-   Forces overrides on all Bootstrap utilities
-   ========================================== */
-body.bg-dark {
-    background-color: var(--bg-dark) !important;
-    color: var(--text-light) !important;
-}
+/* SEAT MATRIX DYNAMIC COLORING */
+.bms-seat { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background-color: var(--surface-light); border: 2px solid var(--border-light); color: var(--text-muted); cursor: pointer; margin: 0 4px; transition: all 0.2s ease; }
+.bms-seat:hover:not(.disabled) { border-color: var(--brand-primary); color: var(--brand-primary); transform: scale(1.1); }
+.bms-seat.selected { background-color: var(--brand-primary); color: white; border-color: var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); transform: scale(1.1); }
+.bms-seat.booked { border-color: transparent; background-color: var(--bg-light); color: #cbd5e1; pointer-events: none; }
 
-/* 1. Fix Admin Login Card & Form Box */
-body.bg-dark .card,
-body.bg-dark #event-form {
-    background-color: var(--surface-dark) !important;
-    border: 1px solid var(--border-dark) !important;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
+/* CURVED SCREEN DYNAMIC COLORING */
+.bms-screen-container { margin-top: 30px; margin-bottom: 60px; perspective: 800px; }
+.bms-screen {
+    width: 85%; max-width: 500px; height: 40px; margin: 0 auto;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0; 
+    border-top: 3px solid var(--brand-primary); 
+    background: linear-gradient(to bottom, var(--brand-glow-light), transparent);
+    box-shadow: 0 -10px 30px var(--brand-glow-light);
 }
+.bms-screen-text { font-size: 12px; font-weight: 800; letter-spacing: 8px; text-transform: uppercase; text-align: center; margin-top: -10px; color: var(--brand-primary); opacity: 0.8; }
 
-/* 2. Fix Analytics Cards (Restores the vibrant colors) */
+/* LEGEND DYNAMIC COLORING */
+.seat-legend { display: flex; justify-content: center; gap: 30px; margin-top: 40px; margin-bottom: 30px; background: white; padding: 15px; border-radius: var(--radius-pill); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); display: inline-flex; left: 50%; position: relative; transform: translateX(-50%); }
+.legend-item { display: flex; align-items: center; font-size: 13px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.legend-box { width: 20px; height: 20px; border-radius: 6px; margin-right: 10px; }
+.legend-available { border: 2px solid #e2e8f0; background-color: white; }
+.legend-selected { background-color: var(--brand-primary); border: 2px solid var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); }
+.legend-sold { background-color: #f1f5f9; border: 2px solid transparent; opacity: 0.6; }
+
+/* ADMIN PANEL BUG FIXES (Unchanged from previous fix) */
+body.bg-dark { background-color: var(--bg-dark) !important; color: var(--text-light) !important; }
+body.bg-dark .card, body.bg-dark #event-form { background-color: var(--surface-dark) !important; border: 1px solid var(--border-dark) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important; }
 body.bg-dark .analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
 body.bg-dark .analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
 body.bg-dark .analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
 body.bg-dark .analytics-card-users { background-color: #f59e0b !important; border: none !important; }
-
-body.bg-dark .analytics-card-revenue *, 
-body.bg-dark .analytics-card-tickets *, 
-body.bg-dark .analytics-card-events *, 
-body.bg-dark .analytics-card-users * {
-    color: #ffffff !important; 
-}
-
-/* 3. Fix Unreadable Form Inputs & Labels */
-body.bg-dark .form-label { 
-    color: var(--text-muted-dark) !important; 
-}
-body.bg-dark .form-control, 
-body.bg-dark .form-select {
-    background-color: var(--surface-darker) !important;
-    border: 2px solid var(--border-dark) !important;
-    color: var(--text-light) !important;
-}
-body.bg-dark .form-control:focus, 
-body.bg-dark .form-select:focus {
-    border-color: var(--warning) !important;
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important;
-    background-color: #000000 !important;
-}
-
-/* 4. Fix Table Headers & Rows */
-body.bg-dark .table-dark {
-    background-color: transparent !important;
-    --bs-table-bg: transparent;
-    border-radius: var(--radius-md);
-}
-body.bg-dark .table-dark th {
-    background-color: var(--surface-darker) !important; /* Removes the glaring white header */
-    color: var(--text-muted-dark) !important;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 0.75rem;
-    border-bottom: 2px solid var(--border-dark) !important;
-    padding: 20px;
-}
-body.bg-dark .table-dark td {
-    background-color: var(--surface-dark) !important;
-    border-bottom: 1px solid var(--border-dark) !important;
-    color: var(--text-light) !important;
-    padding: 20px;
-    vertical-align: middle;
-}
-
-/* Admin Specific Headers/Text */
-body.bg-dark .card-header {
-    background-color: transparent !important;
-    border-bottom: 1px solid var(--border-dark) !important;
-    color: var(--text-light) !important;
-    font-weight: 800;
-}
+body.bg-dark .analytics-card-revenue *, body.bg-dark .analytics-card-tickets *, body.bg-dark .analytics-card-events *, body.bg-dark .analytics-card-users * { color: #ffffff !important; }
+body.bg-dark .form-label { color: var(--text-muted-dark) !important; }
+body.bg-dark .form-control, body.bg-dark .form-select { background-color: var(--surface-darker) !important; border: 2px solid var(--border-dark) !important; color: var(--text-light) !important; }
+body.bg-dark .form-control:focus, body.bg-dark .form-select:focus { border-color: var(--warning) !important; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important; background-color: #000000 !important; }
+body.bg-dark .table-dark { background-color: transparent !important; --bs-table-bg: transparent; border-radius: var(--radius-md); }
+body.bg-dark .table-dark th { background-color: var(--surface-darker) !important; color: var(--text-muted-dark) !important; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.75rem; border-bottom: 2px solid var(--border-dark) !important; padding: 20px; }
+body.bg-dark .table-dark td { background-color: var(--surface-dark) !important; border-bottom: 1px solid var(--border-dark) !important; color: var(--text-light) !important; padding: 20px; vertical-align: middle; }
+body.bg-dark .card-header { background-color: transparent !important; border-bottom: 1px solid var(--border-dark) !important; color: var(--text-light) !important; font-weight: 800; }
 body.bg-dark h2, body.bg-dark h4 { color: var(--text-light) !important; }
 body.bg-dark .text-warning { color: var(--warning) !important; }
 body.bg-dark .text-info { color: #38bdf8 !important; }
