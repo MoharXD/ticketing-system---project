@@ -80,7 +80,7 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/admin/signup', async (req, res) => {
     try {
         const { username, password, secretKey } = req.body;
-        const validSecret = process.env.ADMIN_SECRET || 'admin123';
+        const validSecret = process.env.ADMIN_SECRET;
         if (secretKey !== validSecret) return res.status(403).json({ success: false, message: "Invalid Admin Secret Key." });
 
         const cleanUsername = username.trim();
