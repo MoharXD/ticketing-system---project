@@ -81,7 +81,7 @@
     <section id="booking-section" class="text-center d-none mt-5">
         <div class="row justify-content-center mb-4">
             <div class="col-md-8">
-                <input type="text" id="event-search-bar" class="form-control form-control-lg px-4 py-3 rounded-pill shadow-sm border-0" style="background: #fff; font-weight: 500;" placeholder="Search for movies, events, sports...">
+                <input type="text" id="event-search-bar" class="form-control form-control-lg px-4 py-3 rounded-pill shadow-sm border-0" style="background: #fff; font-weight: 500;" placeholder="🔍 Search for movies, events, sports...">
             </div>
         </div>
 
@@ -111,7 +111,7 @@
                 
                 <div class="booking-action-bar mt-4 d-flex justify-content-between align-items-center shadow-sm">
                     <h3 class="mb-0 fw-bold text-dark">Total: <span class="text-success">₹<span id="seated-total">0</span></span></h3>
-                    <button id="book-seats-btn" class="btn btn-success fw-bold fs-5 px-5 py-2 rounded-pill shadow" disabled>Confirm Seats</button>
+                    <button id="book-seats-btn" class="btn btn-success fw-bold fs-5 px-5 py-2 rounded-pill shadow" disabled>Proceed to Pay</button>
                 </div>
             </div>
 
@@ -128,11 +128,71 @@
                     </div>
                     
                     <h3 class="fw-bold mb-4 text-center">Total: <span class="text-success">₹<span id="general-total">0</span></span></h3>
-                    <button id="book-general-btn" class="btn btn-success btn-lg w-100 fw-bold rounded-pill">Secure Tickets Now</button>
+                    <button id="book-general-btn" class="btn btn-success btn-lg w-100 fw-bold rounded-pill">Proceed to Pay</button>
                 </div>
             </div>
         </article>
     </section>
+
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg" style="border-radius: var(--radius-lg);">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Secure Checkout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 pt-2 text-start">
+                    <div class="mb-4 text-center">
+                        <h2 class="fw-bold text-success mb-0">₹<span id="payment-amount-display">0</span></h2>
+                        <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Total Amount Due</small>
+                    </div>
+                    
+                    <ul class="nav nav-pills nav-justified mb-4 gap-2" id="payment-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold" id="card-tab" data-bs-toggle="pill" data-bs-target="#card-payment" type="button" role="tab">💳 Credit/Debit</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" id="upi-tab" data-bs-toggle="pill" data-bs-target="#upi-payment" type="button" role="tab">📱 UPI</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="payment-tabContent">
+                        <div class="tab-pane fade show active" id="card-payment" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label small">Card Number</label>
+                                <input type="text" class="form-control" placeholder="0000 1111 2222 3333" maxlength="19">
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small">Expiry Date</label>
+                                    <input type="text" class="form-control" placeholder="MM/YY" maxlength="5">
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small">CVV</label>
+                                    <input type="password" class="form-control" placeholder="123" maxlength="4">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Name on Card</label>
+                                <input type="text" class="form-control" placeholder="E.g. John Doe">
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="upi-payment" role="tabpanel">
+                            <div class="mb-3 text-center py-4">
+                                <label class="form-label small">Enter your UPI ID</label>
+                                <input type="text" class="form-control text-center fs-5 fw-bold" placeholder="username@bank">
+                                <p class="text-muted small mt-3">A payment request will be sent directly to your UPI app. Please approve it to finalize the booking.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="confirm-payment-btn" class="btn btn-success w-100 fw-bold py-3 mt-3 shadow-sm" style="border-radius: var(--radius-md); font-size: 1.1rem;">
+                        Pay Securely Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <section id="tickets-section" class="row justify-content-center d-none mt-5 text-start">
         <div class="col-md-9">
@@ -198,6 +258,7 @@
     </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
 <script src="js/app.js" defer></script>
