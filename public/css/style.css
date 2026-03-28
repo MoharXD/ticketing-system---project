@@ -55,16 +55,18 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 .btn-outline-danger { border: 2px solid #ef4444; color: #ef4444; background: transparent; }
 .btn-outline-danger:hover { background-color: #ef4444; color: white; }
 
-/* 🚨 SMART THEME BUTTONS (For individual event cards) 🚨 */
+/* 🚨 SMART THEME BUTTONS: Now solid and vibrant 🚨 */
 .btn-theme {
-    background: transparent;
-    border: 2px solid var(--card-theme, var(--brand-primary));
-    color: var(--card-theme, var(--brand-primary));
-}
-.btn-theme:hover:not(:disabled) {
     background-color: var(--card-theme, var(--brand-primary));
     color: white;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.btn-theme:hover:not(:disabled) {
+    filter: brightness(0.9);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
 
 .badge { padding: 6px 12px; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem; }
