@@ -70,7 +70,7 @@ The application will be running at `http://localhost:3000`.
 
 * **Single Page Application (SPA) Feel:** While not using React, the frontend utilizes heavy DOM manipulation to hide/show sections seamlessly, creating a fast, app-like experience without reloading the browser.
 * **Cascading Deletes:** If an admin deletes a user, the backend recursively hunts down all tickets owned by that user, subtracts them from the event's `ticketsSold` tally, and releases the seats back to the public before terminating the account.
-* **Deterministic Fetching:** Uses timestamp-appended URLs (`?t=123456`) to aggressively break mobile browser caching, ensuring users always see the most accurate data.*
+* **Deterministic Fetching:** Uses timestamp-appended URLs (`?t=123456`) to aggressively break mobile browser caching, ensuring users always see the most accurate data.* 
 
 ## 📂 Project Structure
 
