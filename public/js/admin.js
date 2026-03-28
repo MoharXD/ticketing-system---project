@@ -36,38 +36,56 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================
-// 🎨 SMART THEME EXTRACTOR (COLOR THIEF)
+// 🎨 SMART THEME EXTRACTOR
 // ==========================================
-const imgUrlInput = document.getElementById('event-image');
-const themeColorInput = document.getElementById('event-theme');
-
-imgUrlInput.addEventListener('input', function() {
-    const url = this.value.trim();
+document.getElementById('event-image').addEventListener('change', function(e) {
+    const url = e.target.value;
     if (!url) return;
 
     const img = new Image();
-    img.crossOrigin = 'Anonymous'; // Attempt to bypass strict Image CORS
-    
+    img.crossOrigin = "Anonymous"; // Required to prevent CORS Canvas taint
+    img.src = url;
+
     img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
         try {
-            if (typeof ColorThief !== 'undefined') {
-                const colorThief = new ColorThief();
-                const rgb = colorThief.getColor(img);
-                // Convert extracted RGB array to valid CSS Hex format
-                const hex = '#' + rgb.map(x => {
-                    const hexStr = x.toString(16);
-                    return hexStr.length === 1 ? '0' + hexStr : hexStr;
-                }).join('');
+            ctx.drawImage(img, 0, 0, img.width, img.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            
+            let r = 0, g = 0, b = 0, count = 0;
+            
+            // Sample every 4th pixel to speed up processing
+            for (let i = 0; i < imgData.length; i += 16) {
+                const pr = imgData[i], pg = imgData[i+1], pb = imgData[i+2], pa = imgData[i+3];
                 
-                themeColorInput.value = hex; // Auto-set the color picker!
+                // Skip transparent pixels
+                if (pa < 255) continue;
+                // Skip too dark (blacks/shadows)
+                if (pr < 30 && pg < 30 && pb < 30) continue;
+                // Skip too bright (whites/glare)
+                if (pr > 230 && pg > 230 && pb > 230) continue;
+
+                r += pr; g += pg; b += pb; count++;
             }
-        } catch (e) {
-            console.warn('Image is protected by CORS. Could not auto-extract color. Manual selection required.');
+
+            if (count > 0) {
+                r = Math.floor(r / count);
+                g = Math.floor(g / count);
+                b = Math.floor(b / count);
+                
+                // Convert RGB to HEX
+                const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
+                document.getElementById('event-theme').value = hex;
+            }
+        } catch (err) {
+            console.warn("Smart Theme Extractor blocked by CORS. Using manual picker.");
         }
     };
-    img.src = url;
 });
-// ==========================================
 
 async function loadAnalytics() {
     try {
@@ -288,7 +306,7 @@ function formatForDateTimeLocal(isoString) {
 window.resetEventForm = function() {
     eventForm.reset();
     eventIdInput.value = '';
-    document.getElementById('event-theme').value = '#E23744'; 
+    document.getElementById('event-theme').value = '#E23744';
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
     submitBtn.classList.replace('btn-warning', 'btn-success');
@@ -313,7 +331,6 @@ window.deleteUser = async function(id) {
 }
 
 const socket = typeof io !== 'undefined' ? io() : null;
-
 if (socket) {
     socket.on('dashboardUpdate', () => {
         loadAnalytics();
