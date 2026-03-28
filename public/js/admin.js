@@ -14,21 +14,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    const ageInput = document.getElementById('event-age');
-    if (ageInput && ageInput.tagName === 'INPUT') {
-        const selectAge = document.createElement('select');
-        selectAge.id = 'event-age';
-        selectAge.className = 'form-select';
-        selectAge.innerHTML = `
-            <option value="0">U (Unrestricted / All Ages)</option>
-            <option value="7">UA 7+ (Parental Guidance Advised)</option>
-            <option value="13">UA 13+ (Parental Guidance Advised)</option>
-            <option value="16">UA 16+ (Parental Guidance Advised)</option>
-            <option value="18">A (Adults Only 18+)</option>
-            <option value="99">S (Specialized Audience)</option>
-        `;
-        ageInput.parentNode.replaceChild(selectAge, ageInput);
-    }
+    // 🧹 Cleanup: JavaScript injection logic for CBFC dropdown is removed 
+    // because the consolidated dropdown is now handled directly in the HTML file.
 
     loadAnalytics();
     loadEvents();
@@ -36,73 +23,91 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================
-// 🎨 SMART THEME EXTRACTOR (WITH CORS BYPASS)
+// 🎨 SMART THEME EXTRACTOR & FILE UPLOAD
 // ==========================================
-document.getElementById('event-image').addEventListener('input', async function(e) {
-    const url = e.target.value;
-    if (!url) return;
+const hexToRgbA = (hex, alpha) => {
+    let c;
+    if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+        c = hex.substring(1).split('');
+        if (c.length == 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+        c = '0x' + c.join('');
+        return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
+    }
+    return `rgba(226, 55, 68, ${alpha})`; 
+};
 
-    const themeInput = document.getElementById('event-theme');
+// Reusable function to extract dominant color from an image source (URL or Base64)
+const updateThemeColorFromImage = (imgSrc) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous"; // Crucial to prevent CORS "tainted canvas" security blocks for external URLs
+    img.src = imgSrc;
 
-    // Engine to extract pixels and calculate average RGB
-    const extractColor = (imgSrc) => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = "Anonymous"; // Required for canvas access
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                
-                try {
-                    ctx.drawImage(img, 0, 0, img.width, img.height);
-                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                    
-                    let r = 0, g = 0, b = 0, count = 0;
-                    
-                    for (let i = 0; i < imgData.length; i += 16) {
-                        if (imgData[i+3] < 255) continue; // Skip transparent
-                        if (imgData[i] < 30 && imgData[i+1] < 30 && imgData[i+2] < 30) continue; // Skip pure blacks
-                        if (imgData[i] > 230 && imgData[i+1] > 230 && imgData[i+2] > 230) continue; // Skip pure whites
-
-                        r += imgData[i]; g += imgData[i+1]; b += imgData[i+2]; count++;
-                    }
-
-                    if (count > 0) {
-                        r = Math.floor(r / count);
-                        g = Math.floor(g / count);
-                        b = Math.floor(b / count);
-                        const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
-                        resolve(hex);
-                    } else {
-                        reject("No vibrant colors found");
-                    }
-                } catch (err) {
-                    reject("Canvas tainted by CORS");
-                }
-            };
-            img.onerror = () => reject("Image failed to load");
-            img.src = imgSrc;
-        });
-    };
-
-    try {
-        // Step 1: Try direct extraction first (Fastest)
-        const color = await extractColor(url);
-        themeInput.value = color;
-    } catch (err1) {
-        console.warn("Direct extraction blocked. Using Proxy Bypass...");
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
         try {
-            // Step 2: If the site blocks it (like IGN), route through a public proxy to strip security headers
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-            const color = await extractColor(proxyUrl);
-            themeInput.value = color;
-        } catch (err2) {
-            console.error("Smart Theme Extractor failed. Please pick color manually.");
+            ctx.drawImage(img, 0, 0, img.width, img.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            
+            let r = 0, g = 0, b = 0, count = 0;
+            
+            // Sample every 4th pixel to speed up processing
+            for (let i = 0; i < imgData.length; i += 16) {
+                const pr = imgData[i], pg = imgData[i+1], pb = imgData[i+2], pa = imgData[i+3];
+                
+                // Skip transparent pixels
+                if (pa < 255) continue;
+                // Skip too dark (blacks/shadows)
+                if (pr < 30 && pg < 30 && pb < 30) continue;
+                // Skip too bright (whites/glare)
+                if (pr > 230 && pg > 230 && pb > 230) continue;
+
+                r += pr; g += pg; b += pb; count++;
+            }
+
+            if (count > 0) {
+                r = Math.floor(r / count);
+                g = Math.floor(g / count);
+                b = Math.floor(b / count);
+                
+                // Convert RGB to HEX
+                const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
+                document.getElementById('event-theme').value = hex;
+            }
+        } catch (err) {
+            console.warn("Smart Theme Extractor blocked by CORS or tainted canvas security. Using manual picker fallback.");
         }
+    };
+};
+
+// Listen for direct URL input changes
+document.getElementById('event-image').addEventListener('change', function(e) {
+    if(e.target.value && !e.target.value.startsWith('data:image')) { // Don't trigger if it's base64 from upload
+        updateThemeColorFromImage(e.target.value);
     }
 });
+
+// Listen for local file upload changes
+document.getElementById('event-poster-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Use FileReader to convert local file to base64 string
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64String = event.target.result;
+        // Update the main 'event-image' input with the base64 string for saving to DB
+        document.getElementById('event-image').value = base64String;
+        
+        // Run theme extractor on the newly loaded base64 data
+        updateThemeColorFromImage(base64String);
+    };
+    reader.readAsDataURL(file);
+});
+
 
 async function loadAnalytics() {
     try {
@@ -162,9 +167,11 @@ async function loadEvents() {
         }
 
         tbody.innerHTML = events.map(e => {
-            const imgPreview = e.imageUrl 
-                ? `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; border: 2px solid ${e.themeColor || '#E23744'};">` 
-                : `<div style="width: 50px; height: 50px; background: ${e.themeColor || '#334155'}; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
+            // Updated preview logic to handle both external URLs and long base64 strings cleanly
+            let imgHtml = `<div style="width: 50px; height: 50px; background: ${e.themeColor || '#334155'}; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
+            if (e.imageUrl) {
+                imgHtml = `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; border: 2px solid ${e.themeColor || '#E23744'};">`;
+            }
             
             let ratingBadge = '';
             if(e.ageLimit === 0) ratingBadge = `<span class="badge bg-success ms-2">U</span>`;
@@ -178,7 +185,7 @@ async function loadEvents() {
             <tr>
                 <td class="fw-bold">
                     <div class="d-flex align-items-center">
-                        ${imgPreview}
+                        ${imgHtml}
                         <div>${e.title} ${ratingBadge}</div>
                     </div>
                 </td>
@@ -297,7 +304,12 @@ window.editEvent = function(eventData) {
     document.getElementById('event-price').value = eventData.price || 0;
     document.getElementById('event-location').value = eventData.location;
     document.getElementById('event-description').value = eventData.description || '';
+    
+    // Fill the hidden text field with the URL/base64
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
+    // Clear the file upload input for security/UX
+    document.getElementById('event-poster-file').value = ''; 
+    
     document.getElementById('event-theme').value = eventData.themeColor || '#E23744'; 
 
     document.getElementById('event-start').value = formatForDateTimeLocal(eventData.startDate);
@@ -323,6 +335,8 @@ function formatForDateTimeLocal(isoString) {
 window.resetEventForm = function() {
     eventForm.reset();
     eventIdInput.value = '';
+    // Reset file upload specifically
+    document.getElementById('event-poster-file').value = ''; 
     document.getElementById('event-theme').value = '#E23744';
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
