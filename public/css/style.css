@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-    /* 🔴 DISTRICT THEME DYNAMIC VARIABLES 🔴 */
+    /* 🔴 DISTRICT THEME VARIABLES 🔴 */
     --brand-primary: #E23744; 
     --brand-glow: rgba(226, 55, 68, 0.35);
     --brand-glow-light: rgba(226, 55, 68, 0.15);
@@ -10,6 +10,8 @@
     --success: #1db954;
     --warning: #f59e0b;
     --danger: #ef4444;
+    
+    /* Light Mode */
     --bg-light: #F4F4F5;
     --surface-light: #FFFFFF;
     --text-main: #18181B;
@@ -24,12 +26,13 @@
     --text-muted-dark: #A1A1AA;
     --border-dark: #27272A;
 
-    /* District Geometry */
+    /* District Geometry & Animation */
     --radius-sm: 12px;
     --radius-md: 20px;
     --radius-lg: 32px;
     --radius-pill: 9999px;
     --font-family: 'Plus Jakarta Sans', sans-serif;
+    --ease-bouncy: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,7 +65,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
     border-radius: var(--radius-pill); 
     font-weight: 700; 
     padding: 12px 24px; 
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    transition: all 0.3s var(--ease-bouncy); 
     letter-spacing: 0.3px; 
     text-transform: uppercase; 
     font-size: 0.85rem; 
@@ -73,8 +76,8 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 
 .btn-primary { background-color: var(--brand-primary); color: white; box-shadow: 0 8px 20px var(--brand-glow); }
 .btn-primary:hover { filter: brightness(0.9); color: white; transform: translateY(-2px); box-shadow: 0 12px 25px var(--brand-glow); }
-
 .btn-success { background-color: var(--success); color: white; box-shadow: 0 8px 20px rgba(29, 185, 84, 0.25); }
+.btn-success:hover { filter: brightness(0.9); color: white; transform: translateY(-2px); }
 .btn-warning { background-color: var(--warning); color: #000; }
 .btn-danger { background-color: var(--danger); color: white; }
 
@@ -94,7 +97,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 
 .badge { padding: 6px 12px; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem; }
 
-/* DISTRICT FORMS */
+/* DISTRICT FORMS (Light Mode) */
 .form-label { font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
 .form-control, .form-select { 
     border-radius: var(--radius-md); 
@@ -120,18 +123,13 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
     border: 1px solid var(--border-light); 
     box-shadow: 0 4px 20px rgba(0,0,0,0.03); 
     overflow: hidden; 
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease; 
+    transition: transform 0.4s var(--ease-bouncy), box-shadow 0.4s ease; 
 }
 .event-card { cursor: pointer; }
 .event-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
-.event-card-img { 
-    width: 100%; 
-    height: 240px; 
-    object-fit: cover; 
-    transition: transform 0.6s ease;
-}
+.event-card-img { width: 100%; height: 240px; object-fit: cover; transition: transform 0.6s ease; }
 .event-card:hover .event-card-img { transform: scale(1.05); }
-.card-body { position: relative; background: white; }
+.card-body { position: relative; background: var(--surface-light); }
 
 #seated-view { background: transparent; box-shadow: none; }
 
@@ -139,7 +137,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 .bms-seat { 
     width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; 
     font-size: 13px; font-weight: 700; background-color: var(--surface-light); border: 2px solid var(--border-light); 
-    color: var(--text-muted); cursor: pointer; margin: 0 4px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    color: var(--text-muted); cursor: pointer; margin: 0 4px; transition: all 0.3s var(--ease-bouncy); 
 }
 .bms-seat:hover:not(.disabled) { border-color: var(--brand-primary); color: var(--brand-primary); transform: scale(1.15) translateY(-2px); }
 .bms-seat.selected { background-color: var(--brand-primary); color: white; border-color: var(--brand-primary); box-shadow: 0 8px 16px var(--brand-glow); transform: scale(1.1); }
@@ -163,7 +161,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 
 
 /* ==========================================
-   🚨 ADMIN DARK MODE (DISTRICT FIXES) 🚨
+   🚨 ADMIN DARK MODE (DISTRICT + BUG FIXES) 🚨
    ========================================== */
 body.bg-dark { 
     background-color: var(--bg-dark) !important; 
@@ -171,47 +169,65 @@ body.bg-dark {
     color-scheme: dark; 
 }
 
+/* Fix Analytics Cards Colors */
 .analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
 .analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
 .analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
 .analytics-card-users { background-color: #f59e0b !important; border: none !important; }
 .analytics-card-revenue *, .analytics-card-tickets *, .analytics-card-events *, .analytics-card-users * { color: #ffffff !important; }
 
+/* Admin Cards (Huge Radii + Deep Dark Colors) */
 body.bg-dark .card, body.bg-dark #event-form { 
     background-color: var(--surface-dark) !important; 
     border: 1px solid var(--border-dark) !important; 
     box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important; 
+    border-radius: var(--radius-lg);
 }
 
+/* Admin Form Labels & Inputs */
 body.bg-dark .form-label { color: var(--text-muted-dark) !important; }
 body.bg-dark .form-control, body.bg-dark .form-select { 
     background-color: var(--surface-darker) !important; 
     border: 2px solid var(--border-dark) !important; 
     color: var(--text-light) !important; 
+    border-radius: var(--radius-md);
 }
 body.bg-dark .form-control:focus, body.bg-dark .form-select:focus { 
-    border-color: var(--warning) !important; 
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important; 
+    border-color: var(--brand-primary) !important; 
+    box-shadow: 0 0 0 4px var(--brand-glow-light) !important; 
     background-color: #000000 !important; 
 }
 
-/* Fixes invisible placeholders */
-body.bg-dark .form-control::placeholder { color: #94a3b8 !important; opacity: 0.8; }
+/* 🚨 UI FIX: Visible Placeholders in Dark Mode */
+body.bg-dark .form-control::placeholder { color: rgba(255, 255, 255, 0.3) !important; opacity: 1; }
 
-/* Inverts calendar icons so they pop on dark mode */
+/* 🚨 UI FIX: Native Calendar Icon Inversion */
 body.bg-dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
 body.bg-dark input[type="date"]::-webkit-calendar-picker-indicator,
 body.bg-dark input[type="time"]::-webkit-calendar-picker-indicator {
     filter: invert(1); cursor: pointer; opacity: 0.8;
 }
 
-/* Premium file upload button */
+/* 🚨 UI FIX: File Upload Button Premium Styling */
 body.bg-dark input[type="file"]::file-selector-button {
-    background-color: #334155; color: white; border: none; border-radius: var(--radius-pill); 
-    padding: 8px 16px; margin-right: 12px; font-weight: 700; cursor: pointer; transition: background-color 0.2s;
+    background-color: var(--surface-light) !important; 
+    color: var(--text-main) !important; 
+    border: none; 
+    border-radius: var(--radius-pill); 
+    padding: 10px 20px; 
+    margin-right: 12px; 
+    font-weight: 800; 
+    cursor: pointer; 
+    transition: all 0.3s var(--ease-bouncy);
 }
-body.bg-dark input[type="file"]::file-selector-button:hover { background-color: var(--brand-primary); }
+body.bg-dark input[type="file"]::file-selector-button:hover { 
+    background-color: var(--brand-primary) !important; 
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--brand-glow);
+}
 
+/* Admin Tables */
 body.bg-dark .table-dark { background-color: transparent !important; --bs-table-bg: transparent; border-radius: var(--radius-md); }
 body.bg-dark .table-dark th { background-color: var(--surface-darker) !important; color: var(--text-muted-dark) !important; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.75rem; border-bottom: 2px solid var(--border-dark) !important; padding: 20px; }
 body.bg-dark .table-dark td { background-color: var(--surface-dark) !important; border-bottom: 1px solid var(--border-dark) !important; color: var(--text-light) !important; padding: 20px; vertical-align: middle; }
@@ -219,3 +235,7 @@ body.bg-dark .card-header { background-color: transparent !important; border-bot
 body.bg-dark h2, body.bg-dark h4 { color: var(--text-light) !important; }
 body.bg-dark .text-warning { color: var(--warning) !important; }
 body.bg-dark .text-info { color: #38bdf8 !important; }
+
+/* Booking Action Bar (For specific events) */
+.booking-action-bar { background-color: var(--surface-light); border: none; border-radius: var(--radius-lg); padding: 24px 35px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+.qr-code-box { min-width: 108px; min-height: 108px; display: flex; align-items: center; justify-content: center; background-color: white; border-radius: var(--radius-md); }
