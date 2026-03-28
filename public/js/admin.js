@@ -35,6 +35,40 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
 });
 
+// ==========================================
+// 🎨 SMART THEME EXTRACTOR (COLOR THIEF)
+// ==========================================
+const imgUrlInput = document.getElementById('event-image');
+const themeColorInput = document.getElementById('event-theme');
+
+imgUrlInput.addEventListener('input', function() {
+    const url = this.value.trim();
+    if (!url) return;
+
+    const img = new Image();
+    img.crossOrigin = 'Anonymous'; // Attempt to bypass strict Image CORS
+    
+    img.onload = function() {
+        try {
+            if (typeof ColorThief !== 'undefined') {
+                const colorThief = new ColorThief();
+                const rgb = colorThief.getColor(img);
+                // Convert extracted RGB array to valid CSS Hex format
+                const hex = '#' + rgb.map(x => {
+                    const hexStr = x.toString(16);
+                    return hexStr.length === 1 ? '0' + hexStr : hexStr;
+                }).join('');
+                
+                themeColorInput.value = hex; // Auto-set the color picker!
+            }
+        } catch (e) {
+            console.warn('Image is protected by CORS. Could not auto-extract color. Manual selection required.');
+        }
+    };
+    img.src = url;
+});
+// ==========================================
+
 async function loadAnalytics() {
     try {
         const res = await fetch('/api/admin/analytics');
@@ -93,7 +127,6 @@ async function loadEvents() {
         }
 
         tbody.innerHTML = events.map(e => {
-            // Little visual cue for the admin to see the theme color
             const imgPreview = e.imageUrl 
                 ? `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; border: 2px solid ${e.themeColor || '#E23744'};">` 
                 : `<div style="width: 50px; height: 50px; background: ${e.themeColor || '#334155'}; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
@@ -178,7 +211,7 @@ eventForm.addEventListener('submit', async (e) => {
         location: document.getElementById('event-location').value,
         description: document.getElementById('event-description').value,
         imageUrl: document.getElementById('event-image').value,
-        themeColor: document.getElementById('event-theme').value // NEW: Append to payload
+        themeColor: document.getElementById('event-theme').value 
     };
 
     const endpoint = isEditing ? `/api/admin/events/${eventId}` : '/api/admin/events';
@@ -230,7 +263,7 @@ window.editEvent = function(eventData) {
     document.getElementById('event-location').value = eventData.location;
     document.getElementById('event-description').value = eventData.description || '';
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
-    document.getElementById('event-theme').value = eventData.themeColor || '#E23744'; // POPULATE COLOR
+    document.getElementById('event-theme').value = eventData.themeColor || '#E23744'; 
 
     document.getElementById('event-start').value = formatForDateTimeLocal(eventData.startDate);
     document.getElementById('event-end').value = formatForDateTimeLocal(eventData.endDate);
@@ -255,7 +288,7 @@ function formatForDateTimeLocal(isoString) {
 window.resetEventForm = function() {
     eventForm.reset();
     eventIdInput.value = '';
-    document.getElementById('event-theme').value = '#E23744'; // RESET COLOR
+    document.getElementById('event-theme').value = '#E23744'; 
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
     submitBtn.classList.replace('btn-warning', 'btn-success');
