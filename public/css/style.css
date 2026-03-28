@@ -1,150 +1,355 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+/* ==========================================
+   CSS CUSTOM PROPERTIES (THE DESIGN SYSTEM)
+   EXPLAIN TO TEACHER: "By storing my colors, borders, and fonts in the :root selector, 
+   I created a scalable design system. If I want to change the primary brand color from Indigo to Red, 
+   I only change one line of code, and every button, border, and badge in the app updates automatically."
+   ========================================== */
+
 :root {
-    --brand-primary: #E23744; 
-    --brand-glow: rgba(226, 55, 68, 0.35);
-    --brand-glow-light: rgba(226, 55, 68, 0.15);
-    
-    --success: #1db954;
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --success: #10b981;
+    --success-hover: #059669;
+    --danger: #ef4444;
     --warning: #f59e0b;
-    --bg-light: #F4F4F5;
-    --surface-light: #FFFFFF;
-    --text-main: #18181B;
-    --text-muted: #71717A;
-    --border-light: #E4E4E7;
-
-    --bg-dark: #09090B;
-    --surface-dark: #18181B;
-    --surface-darker: #131316;
-    --text-light: #FAFAFA;
-    --text-muted-dark: #A1A1AA;
-    --border-dark: #27272A;
-
-    --radius-sm: 12px;
-    --radius-md: 20px;
-    --radius-lg: 32px;
-    --radius-pill: 9999px;
+    --dark: #0f172a;
+    --dark-card: #1e293b;
+    --dark-border: #334155;
+    --light: #f8fafc;
+    --bg-color: #f1f5f9;
+    --card-bg: #ffffff;
     --font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font-family); background-color: var(--bg-light); color: var(--text-main); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+/* CSS RESET: Strips away browser default padding/margins for consistent cross-browser rendering */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: #334155;
+    line-height: 1.6;
+}
 
-.text-primary { color: var(--brand-primary) !important; }
-#selected-event-title, #tickets-left { color: var(--text-main) !important; }
+/* --- NAVIGATION BAR --- */
+.navbar {
+    background-color: var(--dark) !important;
+    border-bottom: 1px solid #1e293b;
+    padding: 15px 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: sticky; /* Keeps the nav bar pinned to the top when scrolling */
+    top: 0;
+    z-index: 1000; /* Forces the nav to stay above all other elements */
+}
+.navbar-brand { 
+    font-size: 1.5rem; 
+    font-weight: 800; 
+    color: white !important; 
+    letter-spacing: -0.5px;
+}
+.navbar.bg-warning {
+    background-color: var(--warning) !important;
+}
+.navbar.bg-warning .navbar-brand {
+    color: var(--dark) !important;
+}
 
+/* --- MODULAR CARD SYSTEM --- */
+.card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    /* CSS TRANSITIONS: Hardware-accelerated animations for smooth hover states */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+.event-card:hover {
+    transform: translateY(-3px); /* Lifts the card slightly off the page */
+    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+}
+
+.event-card-img {
+    width: 100%;
+    height: 250px; 
+    object-fit: cover; /* Ensures the image fills the box perfectly without stretching/distorting */
+    border-top-left-radius: 12px; 
+    border-top-right-radius: 12px;
+}
+
+.event-card img + .card-body {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+/* --- TYPOGRAPHY HIERARCHY --- */
+h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--dark); letter-spacing: -0.5px; }
+.text-primary { color: var(--primary) !important; }
 .text-success { color: var(--success) !important; }
+.text-danger { color: var(--danger) !important; }
 .text-warning { color: var(--warning) !important; }
-.text-muted { color: var(--text-muted) !important; }
 
-.navbar { background-color: rgba(24, 24, 27, 0.9) !important; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 16px 24px; }
-.navbar-brand { font-size: 1.25rem; font-weight: 800; color: white !important; letter-spacing: -0.5px; }
-.navbar.bg-warning { background-color: var(--warning) !important; }
-.navbar.bg-warning .navbar-brand { color: var(--bg-dark) !important; }
+/* --- FORMS & INPUTS --- */
+.form-label { font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 0.9rem; }
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: #f8fafc;
+    color: #334155;
+}
+.form-control:focus, .form-select:focus { 
+    background-color: #ffffff;
+    border-color: var(--primary);
+    /* Soft glowing ring around active inputs for accessibility */
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); 
+    outline: none;
+}
 
-.btn { border-radius: var(--radius-pill); font-weight: 700; padding: 12px 24px; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 0.3px; text-transform: uppercase; font-size: 0.85rem; border: none; }
-.btn:active { transform: scale(0.96); }
-.btn-sm { padding: 8px 16px; font-size: 0.75rem; }
+/* --- INTERACTIVE BUTTONS --- */
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 12px 20px;
+    transition: background-color 0.2s, transform 0.1s;
+    letter-spacing: 0.3px;
+    border: none;
+}
+/* Micro-interaction: The button physically 'clicks' downward when pressed */
+.btn:active { transform: scale(0.98); } 
+.btn-sm { padding: 8px 16px; font-size: 0.875rem; }
 
-.btn-primary { background-color: var(--brand-primary); color: white; box-shadow: 0 4px 15px var(--brand-glow); }
-.btn-primary:hover { filter: brightness(0.9); color: white; transform: translateY(-1px); }
+.btn-primary { background-color: var(--primary); color: white; }
+.btn-primary:hover { background-color: var(--primary-hover); color: white; }
 
 .btn-success { background-color: var(--success); color: white; }
-.btn-warning { background-color: var(--warning); color: #000; }
-.btn-danger { background-color: #ef4444; color: white; }
-.btn-outline-danger { border: 2px solid #ef4444; color: #ef4444; background: transparent; }
-.btn-outline-danger:hover { background-color: #ef4444; color: white; }
+.btn-success:hover { background-color: var(--success-hover); color: white; }
 
-.btn-theme { background-color: var(--card-theme, var(--brand-primary)); color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-.btn-theme:hover:not(:disabled) { filter: brightness(0.9); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+.btn-danger { background-color: var(--danger); color: white; }
+.btn-danger:hover { background-color: #dc2626; color: white; }
 
-.badge { padding: 6px 12px; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem; }
+.btn-warning { background-color: var(--warning); color: var(--dark); }
+.btn-warning:hover { background-color: #d97706; }
 
-.form-label { font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-.form-control, .form-select { border-radius: var(--radius-md); border: 2px solid var(--border-light); padding: 14px 18px; font-size: 1rem; font-weight: 600; background-color: var(--bg-light); color: var(--text-main); transition: all 0.2s ease; }
-.form-control:focus, .form-select:focus { background-color: var(--surface-light); border-color: var(--brand-primary); box-shadow: 0 0 0 4px var(--brand-glow-light); outline: none; }
-
-.card { background-color: var(--surface-light); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: 0 4px 20px rgba(0,0,0,0.03); overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
-.event-card { cursor: pointer; }
-.event-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
-.event-card-img { width: 100%; height: 240px; object-fit: cover; }
-
-#seated-view { background: transparent; box-shadow: none; }
-
-.bms-seat { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background-color: var(--surface-light); border: 2px solid var(--border-light); color: var(--text-muted); cursor: pointer; margin: 0 4px; transition: all 0.2s ease; }
-.bms-seat:hover:not(.disabled) { border-color: var(--brand-primary); color: var(--brand-primary); transform: scale(1.1); }
-.bms-seat.selected { background-color: var(--brand-primary); color: white; border-color: var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); transform: scale(1.1); }
-.bms-seat.booked { border-color: transparent; background-color: var(--bg-light); color: #cbd5e1; pointer-events: none; }
-
-.bms-screen-container { margin-top: 30px; margin-bottom: 60px; perspective: 800px; }
-.bms-screen { width: 85%; max-width: 500px; height: 40px; margin: 0 auto; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-top: 3px solid var(--brand-primary); background: linear-gradient(to bottom, var(--brand-glow-light), transparent); box-shadow: 0 -10px 30px var(--brand-glow-light); }
-.bms-screen-text { font-size: 12px; font-weight: 800; letter-spacing: 8px; text-transform: uppercase; text-align: center; margin-top: -10px; color: var(--brand-primary); opacity: 0.8; }
-
-.seat-legend { display: flex; justify-content: center; gap: 30px; margin-top: 40px; margin-bottom: 30px; background: white; padding: 15px; border-radius: var(--radius-pill); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); display: inline-flex; left: 50%; position: relative; transform: translateX(-50%); }
-.legend-item { display: flex; align-items: center; font-size: 13px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-.legend-box { width: 20px; height: 20px; border-radius: 6px; margin-right: 10px; }
-.legend-available { border: 2px solid #e2e8f0; background-color: white; }
-.legend-selected { background-color: var(--brand-primary); border: 2px solid var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); }
-.legend-sold { background-color: #f1f5f9; border: 2px solid transparent; opacity: 0.6; }
+.badge {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
 
 /* ==========================================
-   🚨 ADMIN DARK MODE FIXES 🚨
+   CUSTOM COMPONENT: SEAT SELECTION MATRIX
+   EXPLAIN TO TEACHER: "I used CSS Flexbox extensively here to perfectly align the 
+   dynamic grid of seats generated by JavaScript, regardless of screen width."
    ========================================== */
-body.bg-dark { 
-    background-color: var(--bg-dark) !important; 
-    color: var(--text-light) !important; 
-    /* This magically forces Chrome/Firefox to turn native calendars & scrollbars dark! */
-    color-scheme: dark; 
-}
-body.bg-dark .card, body.bg-dark #event-form { background-color: var(--surface-dark) !important; border: 1px solid var(--border-dark) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important; }
-body.bg-dark .analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
-body.bg-dark .analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
-body.bg-dark .analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
-body.bg-dark .analytics-card-users { background-color: #f59e0b !important; border: none !important; }
-body.bg-dark .analytics-card-revenue *, body.bg-dark .analytics-card-tickets *, body.bg-dark .analytics-card-events *, body.bg-dark .analytics-card-users * { color: #ffffff !important; }
-body.bg-dark .form-label { color: var(--text-muted-dark) !important; }
-
-/* Input Styling */
-body.bg-dark .form-control, body.bg-dark .form-select { 
-    background-color: var(--surface-darker) !important; 
-    border: 2px solid var(--border-dark) !important; 
-    color: var(--text-light) !important; 
-}
-body.bg-dark .form-control:focus, body.bg-dark .form-select:focus { 
-    border-color: var(--warning) !important; 
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important; 
-    background-color: #000000 !important; 
+#seated-view {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
 }
 
-/* FIX: Makes the placeholder text a readable, sleek light-grey */
-body.bg-dark .form-control::placeholder {
-    color: rgba(255, 255, 255, 0.3) !important;
-    opacity: 1;
-}
-
-/* FIX: Premium styling for the ugly native "Choose File" button */
-body.bg-dark input[type="file"]::file-selector-button {
-    background-color: var(--border-dark);
-    color: var(--text-light);
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 8px 16px;
-    margin-right: 16px;
-    font-weight: 700;
-    transition: background-color 0.2s;
+.bms-seat {
+    width: 35px;
+    height: 35px;
+    border-radius: 6px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    background-color: white;
+    border: 1.5px solid #10b981; 
+    color: #10b981;
     cursor: pointer;
+    margin: 0 4px;
 }
-body.bg-dark input[type="file"]::file-selector-button:hover {
-    background-color: var(--brand-primary);
+
+/* Pseudo-selector: Only hoverable if the seat does NOT have the .disabled class */
+.bms-seat:hover:not(.disabled) {
+    background-color: #d1fae5;
+}
+
+/* Class toggled by JavaScript when user clicks */
+.bms-seat.selected {
+    background-color: #10b981;
+    color: white;
+    border-color: #10b981;
+}
+
+/* Class toggled by WebSocket when someone else buys the seat */
+.bms-seat.booked {
+    border-color: #e2e8f0;
+    background-color: #f8fafc;
+    color: #cbd5e1;
+    pointer-events: none; /* Physically prevents mouse clicks at the CSS layer */
+}
+
+/* The curved 'Screen' visual element */
+.bms-screen-container { 
+    margin-top: 20px; 
+    margin-bottom: 50px; 
+}
+.bms-screen {
+    width: 80%;
+    max-width: 450px;
+    height: 30px;
+    /* CSS trick to create an arch/curve using border-radius */
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0; 
+    background-color: rgba(99, 102, 241, 0.1);
+    border-top: 2px solid #6366f1; 
+    margin: 0 auto;
+}
+.bms-screen-text {
+    font-size: 13px;
+    color: #6366f1;
+    font-weight: 800;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: -15px; 
+}
+
+.seat-legend {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-top: 30px;
+    margin-bottom: 20px;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 600;
+}
+.legend-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+.legend-available { border: 1.5px solid #10b981; background-color: white; }
+.legend-selected { background-color: #10b981; border: 1.5px solid #10b981; }
+.legend-sold { background-color: #f8fafc; border: 1.5px solid #e2e8f0; }
+
+.booking-action-bar {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 30px;
+}
+
+.qr-code-box {
+    min-width: 108px;
+    min-height: 108px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+}
+
+/* ==========================================
+   CSS STATE TARGETING: DARK MODE FOR ADMIN PANEL
+   ========================================== */
+body.bg-dark {
+    background-color: var(--dark) !important;
+    background-image: none;
+    color: var(--light);
+}
+
+.analytics-card-revenue { background-color: #10b981 !important; border: none; }
+.analytics-card-tickets { background-color: #3b82f6 !important; border: none; }
+.analytics-card-events { background-color: #8b5cf6 !important; border: none; }
+.analytics-card-users { background-color: #f59e0b !important; border: none; }
+
+.analytics-card-revenue h6, .analytics-card-tickets h6, .analytics-card-events h6, .analytics-card-users h6 {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+.analytics-card-revenue h2, .analytics-card-tickets h2, .analytics-card-events h2, .analytics-card-users h2 {
+    color: #ffffff !important;
+}
+
+body.bg-dark .card:not(.analytics-card-revenue):not(.analytics-card-tickets):not(.analytics-card-events):not(.analytics-card-users) {
+    background-color: var(--dark-card) !important;
+    border: 1px solid var(--dark-border);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+body.bg-dark .card-header {
+    background-color: #151e2e; 
+    border-bottom: 1px solid var(--dark-border);
     color: white;
 }
+body.bg-dark .form-label { color: #cbd5e1; }
 
-body.bg-dark .table-dark { background-color: transparent !important; --bs-table-bg: transparent; border-radius: var(--radius-md); }
-body.bg-dark .table-dark th { background-color: var(--surface-darker) !important; color: var(--text-muted-dark) !important; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.75rem; border-bottom: 2px solid var(--border-dark) !important; padding: 20px; }
-body.bg-dark .table-dark td { background-color: var(--surface-dark) !important; border-bottom: 1px solid var(--border-dark) !important; color: var(--text-light) !important; padding: 20px; vertical-align: middle; }
-body.bg-dark .card-header { background-color: transparent !important; border-bottom: 1px solid var(--border-dark) !important; color: var(--text-light) !important; font-weight: 800; }
-body.bg-dark h2, body.bg-dark h4 { color: var(--text-light) !important; }
-body.bg-dark .text-warning { color: var(--warning) !important; }
-body.bg-dark .text-info { color: #38bdf8 !important; }
+body.bg-dark .form-control, body.bg-dark .form-select {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: white;
+    color-scheme: dark; /* FIX: Forces native browser elements (like the calendar popup) into dark mode */
+}
+
+body.bg-dark .form-control:focus {
+    border-color: var(--warning);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+/* FIX: Makes the placeholder text highly readable light-slate instead of invisible black */
+body.bg-dark .form-control::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.8;
+}
+
+/* FIX: Inverts the little calendar/clock icons from black to white so they show up on the dark background */
+body.bg-dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+body.bg-dark input[type="date"]::-webkit-calendar-picker-indicator,
+body.bg-dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+/* FIX: Makes the "Choose File" upload button look like a premium dark mode button */
+body.bg-dark input[type="file"]::file-selector-button {
+    background-color: #334155;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    margin-right: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+body.bg-dark input[type="file"]::file-selector-button:hover {
+    background-color: var(--primary);
+}
+
+.table-dark {
+    background-color: var(--dark-card);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.table-dark th {
+    background-color: #151e2e !important; 
+    color: #94a3b8 !important;
+    font-weight: 600;
+    border-bottom: 2px solid var(--dark-border) !important;
+    padding: 15px;
+}
+.table-dark td {
+    background-color: var(--dark-card) !important;
+    border-bottom: 1px solid var(--dark-border) !important;
+    color: #e2e8f0;
+    vertical-align: middle;
+}
