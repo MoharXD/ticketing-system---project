@@ -1,25 +1,30 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const session = require('express-session');
-const bcrypt = require('bcryptjs');
-const path = require('path');
-const http = require('http');
-const { Server } = require('socket.io');
-require('dotenv').config();
+// --- 1. IMPORTING REQUIRED LIBRARIES ---
+const express = require('express');         
+const mongoose = require('mongoose');       
+const session = require('express-session'); 
+const bcrypt = require('bcryptjs');         
+const path = require('path');               
+const http = require('http');               
+const { Server } = require('socket.io');    
+require('dotenv').config();                 
 
+// Import our Database Blueprints (Models)
 const User = require('./models/User'); 
 const Event = require('./models/Event');
 const Seat = require('./models/Seat');
 
+// --- 2. SERVER INITIALIZATION ---
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const server = http.createServer(app);      
+const io = new Server(server);              
 
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// --- 3. MIDDLEWARE CONFIGURATION ---
+app.use(express.json()); 
+app.use(express.static(path.join(__dirname, 'public'))); 
 
+// Session Config: Gives every user a unique 'cookie' when they log in to track their state
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
@@ -27,6 +32,7 @@ app.use(session({
     cookie: { secure: false } 
 }));
 
+// --- 4. DATABASE CONNECTION ---
 const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB';
 mongoose.connect(DB_URI)
     .then(async () => {
@@ -36,20 +42,29 @@ mongoose.connect(DB_URI)
     })
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
+// ==========================================
+// 🛡️ SECURITY MIDDLEWARE
+// ==========================================
+
 const verifyActiveUser = async (req, res, next) => {
     if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
+    
     const user = await User.findById(req.session.userId);
     if (!user) {
-        req.session.destroy();
+        req.session.destroy(); 
         return res.status(401).json({ success: false, forceLogout: true, message: "Your account has been deleted by an administrator." });
     }
-    next();
+    next(); 
 };
 
 const requireAdmin = (req, res, next) => {
     if (req.session.isAdmin) next();
     else res.status(403).json({ success: false, message: "Forbidden: Admins Only" });
 };
+
+// ==========================================
+// 🔑 AUTHENTICATION ROUTES (Login / Signup)
+// ==========================================
 
 app.post('/api/signup', async (req, res) => {
     try {
@@ -63,7 +78,7 @@ app.post('/api/signup', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({ username: cleanUsername, password: hashedPassword, isAdmin: false });
         
-        io.emit('dashboardUpdate');
+        io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Account created! You can now log in." });
     } catch (err) {
         res.status(500).json({ success: false, message: "Server error." });
@@ -111,7 +126,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-    req.session.destroy();
+    req.session.destroy(); 
     res.json({ success: true });
 });
 
@@ -128,8 +143,12 @@ app.get('/api/check-session', async (req, res) => {
     }
 });
 
+// ==========================================
+// 👤 USER PROFILE (Protected Routes)
+// ==========================================
+
 app.get('/api/profile', verifyActiveUser, async (req, res) => {
-    const user = await User.findById(req.session.userId).select('-password');
+    const user = await User.findById(req.session.userId).select('-password'); 
     res.json({ success: true, user });
 });
 
@@ -153,8 +172,12 @@ app.put('/api/profile', verifyActiveUser, async (req, res) => {
     }
 });
 
+// ==========================================
+// 🎟️ PUBLIC EVENTS & SEATS
+// ==========================================
+
 app.get('/api/events', async (req, res) => {
-    const events = await Event.find().sort({ startDate: 1 });
+    const events = await Event.find().sort({ startDate: 1 }); 
     res.json(events);
 });
 
@@ -162,6 +185,10 @@ app.get('/api/seats/:eventId', async (req, res) => {
     const seats = await Seat.find({ eventId: req.params.eventId });
     res.json(seats);
 });
+
+// ==========================================
+// 🛒 CORE BOOKING LOGIC
+// ==========================================
 
 app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
     const { eventId, seats } = req.body; 
@@ -198,7 +225,7 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
     try {
         const event = await Event.findOneAndUpdate(
             { _id: eventId, $expr: { $gte: [ "$capacity", { $add: ["$ticketsSold", requestedQty] } ] } },
-            { $inc: { ticketsSold: requestedQty } },
+            { $inc: { ticketsSold: requestedQty } }, 
             { new: true }
         );
 
@@ -208,7 +235,7 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
         for(let i=0; i<requestedQty; i++) {
             generalTickets.push({
                 eventId: event._id,
-                seatId: `GA-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${i+1}`,
+                seatId: `GA-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${i+1}`, 
                 status: 'Booked',
                 bookedBy: req.session.username,
                 userId: req.session.userId 
@@ -285,6 +312,10 @@ app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
     }
 });
 
+// ==========================================
+// 🛠️ ADMIN ROUTES
+// ==========================================
+
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const usersCount = await User.countDocuments();
@@ -340,7 +371,7 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
 app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try {
         const oldEvent = await Event.findById(req.params.id);
-        const { eventType, capacity, imageUrl } = req.body; 
+        const { eventType, capacity, imageUrl, themeColor } = req.body; 
         const newCapacity = Number(capacity);
 
         if (oldEvent.ticketsSold > 0) {
@@ -422,6 +453,11 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     }
 });
 
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// ==========================================
+// 🚀 SERVER STARTUP
+// ==========================================
+
+// 🚨 THE FIX: Explicitly bind the server to '0.0.0.0' so Render.com's port scanner can see it! 🚨
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} bound to 0.0.0.0`);
 });
