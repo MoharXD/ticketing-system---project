@@ -52,6 +52,7 @@ if (socket) {
             }
         }
     });
+
     socket.on('eventUpdate', async () => {
         await refreshGlobalEvents();
     });
@@ -68,6 +69,7 @@ function handlePossibleForceLogout(data) {
 
 function checkEventExpirations() {
     const now = new Date();
+
     allEvents.forEach(e => {
         const isExpired = now > new Date(e.endDate);
         const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
@@ -75,7 +77,7 @@ function checkEventExpirations() {
         if (isExpired && btn && !btn.disabled) {
             btn.disabled = true;
             btn.innerText = 'Event Ended';
-            btn.classList.replace('dynamic-theme-btn', 'btn-secondary');
+            btn.classList.replace('btn-theme', 'btn-secondary');
 
             if (currentEventId === String(e._id)) {
                 alert("⏳ Time's up! This event has officially ended and is no longer accepting bookings.");
@@ -109,9 +111,9 @@ async function refreshGlobalEvents() {
 
                 if (parseInt(ticketsLeftEl.innerText) !== available) {
                     ticketsLeftEl.innerText = available;
-                    ticketsLeftEl.style.transition = 'opacity 0.3s ease';
-                    ticketsLeftEl.style.opacity = '0.5'; 
-                    setTimeout(() => ticketsLeftEl.style.opacity = '1', 300);
+                    ticketsLeftEl.style.transition = 'color 0.3s ease';
+                    ticketsLeftEl.style.color = '#10b981'; 
+                    setTimeout(() => ticketsLeftEl.style.color = '', 1000);
                 }
 
                 const qtyInput = document.getElementById('general-qty');
@@ -122,7 +124,9 @@ async function refreshGlobalEvents() {
                 }
             }
         }
+        
         checkEventExpirations(); 
+        
     } catch(err) {
         console.error("Live sync failed", err);
     }
@@ -288,24 +292,26 @@ function displayEvents(events) {
         const priceText = `<span class="badge bg-success ms-2 fs-6">₹${e.price || 0}</span>`; 
         const ratingBadge = getRatingBadge(e.ageLimit); 
         const imgHtml = e.imageUrl ? `<img src="${e.imageUrl}" class="event-card-img" alt="${e.title}">` : '';
-        const safeTheme = e.themeColor || '#E23744'; // Grabs from DB
+        const safeTheme = e.themeColor || '#E23744'; 
         
         const isExpired = now > new Date(e.endDate);
+        
+        // 🚨 UPDATE: Using btn-theme instead of btn-outline-primary so the card borders inherit the theme instantly
         const btnHtml = isExpired 
             ? `<button class="btn btn-secondary w-100 fw-bold mt-auto select-event-btn py-2" disabled data-id="${e._id}">Event Ended</button>`
-            : `<button class="btn w-100 fw-bold mt-auto select-event-btn dynamic-theme-btn py-2" 
+            : `<button class="btn btn-theme w-100 fw-bold mt-auto select-event-btn py-2" 
                 data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}"
                 data-type="${e.eventType}" data-price="${e.price || 0}" data-theme="${safeTheme}" 
                 data-available="${e.capacity - e.ticketsSold}">Select Event</button>`;
 
-        // Notice the inline style setting the CSS variable per card!
+        // 🚨 UPDATE: Injecting style="--card-theme: ${safeTheme};" into the card container
         return `
         <div class="col-md-6 col-lg-6 mb-4">
-            <div class="card bg-white shadow-sm border-0 h-100 event-card" data-start="${e.startDate}" data-end="${e.endDate}" style="--local-theme: ${safeTheme};">
+            <div class="card bg-white shadow-sm border-0 h-100 event-card" style="--card-theme: ${safeTheme};" data-start="${e.startDate}" data-end="${e.endDate}">
                 ${imgHtml} 
                 <div class="card-body d-flex flex-column p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h4 class="card-title fw-bold mb-0 dynamic-theme-text">${e.title} ${priceText} ${ratingBadge}</h4> 
+                        <h4 class="card-title fw-bold text-dark mb-0">${e.title} ${priceText} ${ratingBadge}</h4> 
                     </div>
                     <p class="card-text text-muted mb-3 fs-6">📍 <span class="fw-medium">${e.location}</span></p>
                     <div class="bg-light p-3 rounded-3 mb-3">
@@ -323,12 +329,13 @@ function displayEvents(events) {
 document.getElementById('events-container').addEventListener('click', async (e) => {
     if (e.target.classList.contains('select-event-btn') && !e.target.disabled) {
         
-        // --- 🎨 GLOBAL THEME OVERRIDE ---
+        // --- LIVE DYNAMIC THEMING ---
         const activeTheme = e.target.getAttribute('data-theme');
         document.documentElement.style.setProperty('--brand-primary', activeTheme);
         document.documentElement.style.setProperty('--brand-glow', hexToRgbA(activeTheme, 0.35));
         document.documentElement.style.setProperty('--brand-glow-light', hexToRgbA(activeTheme, 0.15));
-        
+        // ------------------------------
+
         const eventId = e.target.getAttribute('data-id');
         const title = e.target.getAttribute('data-title');
         const requiredAge = parseInt(e.target.getAttribute('data-age'));
