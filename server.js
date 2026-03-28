@@ -21,7 +21,9 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
 // --- 3. MIDDLEWARE CONFIGURATION ---
-app.use(express.json()); 
+// 🛠️ BUG FIX: Increased payload limit to 50mb to allow large Base64 image strings
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); 
 
 // Session Config: Gives every user a unique 'cookie' when they log in to track their state
