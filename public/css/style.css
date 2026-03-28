@@ -32,8 +32,10 @@ body { font-family: var(--font-family); background-color: var(--bg-light); color
 
 h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 
-/* Fixed: Removed #selected-event-title from here so it stays pure black/dark */
+/* 🚨 FIX: Separated the title from the theme color so it is always readable 🚨 */
 .text-primary { color: var(--brand-primary) !important; }
+#selected-event-title, #tickets-left { color: var(--text-main) !important; }
+
 .text-success { color: var(--success) !important; }
 .text-warning { color: var(--warning) !important; }
 .text-muted { color: var(--text-muted) !important; }
@@ -88,7 +90,6 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 .legend-selected { background-color: var(--brand-primary); border: 2px solid var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); }
 .legend-sold { background-color: #f1f5f9; border: 2px solid transparent; opacity: 0.6; }
 
-/* ADMIN DARK MODE */
 body.bg-dark { background-color: var(--bg-dark) !important; color: var(--text-light) !important; }
 body.bg-dark .card, body.bg-dark #event-form { background-color: var(--surface-dark) !important; border: 1px solid var(--border-dark) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important; }
 body.bg-dark .analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
