@@ -84,14 +84,14 @@
             <div class="card-header fs-5 border-0 pt-4 pb-3">📅 Event Management</div>
             <div class="card-body p-4">
                 
-                <form id="event-form" class="mb-5 p-4 rounded-4" style="background: rgba(0,0,0,0.2); border: 1px solid #334155;">
+                <form id="event-form" class="mb-5 p-4 rounded-4" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-dark);">
                     <h4 id="form-title" class="text-warning mb-4 fw-bold">✨ Create New Event</h4>
                     <input type="hidden" id="event-id">
                     
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Event Title</label>
-                            <input type="text" id="event-title" class="form-control" required>
+                            <input type="text" id="event-title" class="form-control" placeholder="e.g. Kolkata Comic Con 2026" required>
                         </div>
                         
                         <div class="col-md-2">
@@ -111,48 +111,47 @@
                             </select>
                         </div>
 
-                        <div class="col-md-12 mt-3">
-                            <label class="form-label text-warning">Event Poster Image</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light text-muted">URL</span>
-                                <input type="text" id="event-image" class="form-control" placeholder="https://..." required>
-                                <span class="input-group-text bg-light text-muted">OR Upload File</span>
-                                <input type="file" id="event-poster-file" class="form-control" accept="image/*">
-                            </div>
+                        <div class="col-md-6 mt-4">
+                            <label class="form-label text-warning">Event Poster (Paste URL)</label>
+                            <input type="text" id="event-image" class="form-control" placeholder="https://example.com/poster.jpg" required>
+                        </div>
+                        <div class="col-md-6 mt-4">
+                            <label class="form-label text-warning">OR Upload Local Image</label>
+                            <input type="file" id="event-poster-file" class="form-control" accept="image/*">
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-4 mt-4">
                             <label class="form-label text-info">Event Type</label>
                             <select id="event-type" class="form-select" required>
                                 <option value="Seated">Seated</option>
                                 <option value="General">General Admission</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4 mt-4">
                             <label class="form-label text-info">Capacity (Total Tickets)</label>
-                            <input type="number" id="event-capacity" class="form-control" min="1" required>
+                            <input type="number" id="event-capacity" class="form-control" placeholder="e.g. 150" min="1" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4 mt-4">
                             <label class="form-label text-success">Ticket Price (₹)</label>
                             <input type="number" id="event-price" class="form-control" min="0" value="0" required>
                         </div>
                         
-                        <div class="col-md-4">
+                        <div class="col-md-4 mt-4">
                             <label class="form-label">Start Date & Time</label>
                             <input type="datetime-local" id="event-start" class="form-control" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4 mt-4">
                             <label class="form-label">End Date & Time</label>
                             <input type="datetime-local" id="event-end" class="form-control" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4 mt-4">
                             <label class="form-label">Location / Venue</label>
-                            <input type="text" id="event-location" class="form-control" required>
+                            <input type="text" id="event-location" class="form-control" placeholder="e.g. Netaji Indoor Stadium" required>
                         </div>
                         
-                        <div class="col-12 mt-3">
+                        <div class="col-12 mt-4">
                             <label class="form-label">Event Description</label>
-                            <textarea id="event-description" class="form-control" rows="3"></textarea>
+                            <textarea id="event-description" class="form-control" rows="3" placeholder="Describe the event..."></textarea>
                         </div>
                     </div>
                     
@@ -195,7 +194,7 @@
         </section>
     </main>
 
-    <footer class="mt-auto py-3 text-center" style="background-color: #151e2e; border-top: 1px solid #334155;">
+    <footer class="mt-auto py-3 text-center" style="background-color: #131316; border-top: 1px solid var(--border-dark);">
         <div class="container">
             <small class="text-muted fw-bold">&copy; 2026 Ticket Booking Admin System. All Rights Reserved.</small>
         </div>
