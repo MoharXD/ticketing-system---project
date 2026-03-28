@@ -43,7 +43,6 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 /* Readability fix: Titles stay dark! */
 .text-primary { color: var(--brand-primary) !important; }
 #selected-event-title, #tickets-left { color: var(--text-main) !important; }
-
 .text-success { color: var(--success) !important; }
 .text-warning { color: var(--warning) !important; }
 .text-muted { color: var(--text-muted) !important; }
@@ -159,9 +158,8 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 .legend-selected { background-color: var(--brand-primary); border: 2px solid var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); }
 .legend-sold { background-color: #f1f5f9; border: 2px solid transparent; opacity: 0.6; }
 
-
 /* ==========================================
-   🚨 ADMIN DARK MODE (DISTRICT + BUG FIXES) 🚨
+   🚨 ADMIN DARK MODE (DISTRICT FIXES) 🚨
    ========================================== */
 body.bg-dark { 
     background-color: var(--bg-dark) !important; 
@@ -170,11 +168,11 @@ body.bg-dark {
 }
 
 /* Fix Analytics Cards Colors */
-.analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
-.analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
-.analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
-.analytics-card-users { background-color: #f59e0b !important; border: none !important; }
-.analytics-card-revenue *, .analytics-card-tickets *, .analytics-card-events *, .analytics-card-users * { color: #ffffff !important; }
+body.bg-dark .analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
+body.bg-dark .analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
+body.bg-dark .analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
+body.bg-dark .analytics-card-users { background-color: #f59e0b !important; border: none !important; }
+body.bg-dark .analytics-card-revenue *, body.bg-dark .analytics-card-tickets *, body.bg-dark .analytics-card-events *, body.bg-dark .analytics-card-users * { color: #ffffff !important; }
 
 /* Admin Cards (Huge Radii + Deep Dark Colors) */
 body.bg-dark .card, body.bg-dark #event-form { 
@@ -198,17 +196,17 @@ body.bg-dark .form-control:focus, body.bg-dark .form-select:focus {
     background-color: #000000 !important; 
 }
 
-/* 🚨 UI FIX: Visible Placeholders in Dark Mode */
+/* UI FIX: Visible Placeholders in Dark Mode */
 body.bg-dark .form-control::placeholder { color: rgba(255, 255, 255, 0.3) !important; opacity: 1; }
 
-/* 🚨 UI FIX: Native Calendar Icon Inversion */
+/* UI FIX: Native Calendar Icon Inversion */
 body.bg-dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
 body.bg-dark input[type="date"]::-webkit-calendar-picker-indicator,
 body.bg-dark input[type="time"]::-webkit-calendar-picker-indicator {
     filter: invert(1); cursor: pointer; opacity: 0.8;
 }
 
-/* 🚨 UI FIX: File Upload Button Premium Styling */
+/* UI FIX: File Upload Button Premium Styling */
 body.bg-dark input[type="file"]::file-selector-button {
     background-color: var(--surface-light) !important; 
     color: var(--text-main) !important; 
