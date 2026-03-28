@@ -44,9 +44,19 @@ function resetGlobalTheme() {
     document.documentElement.style.setProperty('--brand-glow-light', 'rgba(226, 55, 68, 0.15)');
 }
 
-// === NEW LIVE CLOCK DATE UTILS ===
+// === BULLETPROOF TIMEZONE DATE UTILS ===
+
+// Custom function instead of toISOString() to prevent UTC timezone shifts
+function formatLocalYYYYMMDD(dateObj) {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function getDatesInRange(startDate, endDate) {
     const dates = [];
+    
     let curr = new Date(startDate);
     curr.setHours(0,0,0,0);
     
@@ -56,20 +66,16 @@ function getDatesInRange(startDate, endDate) {
     let today = new Date();
     today.setHours(0,0,0,0);
 
-    // Filter out past dates! If event started yesterday, start calendar from TODAY
+    // If the event started in the past, skip to Today
     if (curr < today) {
-        curr = new Date(today);
+        curr = new Date(today.getTime());
     }
     
     while(curr <= end) {
-        dates.push(new Date(curr));
+        dates.push(new Date(curr.getTime()));
         curr.setDate(curr.getDate() + 1);
     }
     return dates;
-}
-
-function formatDate(dateObj) {
-    return dateObj.toISOString().split('T')[0];
 }
 
 const socket = typeof io !== 'undefined' ? io() : null;
@@ -303,18 +309,23 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         if (dates.length === 0) {
             datesContainer.innerHTML = '<p class="text-danger w-100 text-center fw-bold mt-2">No upcoming dates available. Event has ended.</p>';
         } else {
+            // Strict Timezone Matching
+            let today = new Date(); 
+            today.setHours(0,0,0,0);
+            let tomorrow = new Date(today.getTime()); 
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            const todayStr = formatLocalYYYYMMDD(today);
+            const tomorrowStr = formatLocalYYYYMMDD(tomorrow);
+
             datesContainer.innerHTML = dates.map(d => {
-                const dateStr = formatDate(d);
-                
-                let today = new Date(); today.setHours(0,0,0,0);
-                let tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-                
+                const dateStr = formatLocalYYYYMMDD(d);
                 let line1 = ""; let line2 = "";
 
-                if (d.getTime() === today.getTime()) {
+                if (dateStr === todayStr) {
                     line1 = "Today"; 
                     line2 = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-                } else if (d.getTime() === tomorrow.getTime()) {
+                } else if (dateStr === tomorrowStr) {
                     line1 = "Tomorrow"; 
                     line2 = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
                 } else {
@@ -322,14 +333,13 @@ document.getElementById('events-container').addEventListener('click', async (e) 
                     line2 = d.toLocaleDateString('en-US', { weekday: 'short' });
                 }
 
-                // pe-none prevents clicks on the text inside the button
                 return `<button class="district-date-pill" data-date="${dateStr}">
                             <span class="d-block fw-bold fs-5 mb-1 pe-none">${line1}</span>
                             <span class="d-block small pe-none">${line2}</span>
                         </button>`;
             }).join('');
 
-            // Attach click listeners to new district date pills
+            // Attach click listeners
             document.querySelectorAll('.district-date-pill').forEach(pill => {
                 pill.addEventListener('click', async (btnEv) => {
                     const targetBtn = btnEv.target.closest('.district-date-pill');
@@ -338,11 +348,13 @@ document.getElementById('events-container').addEventListener('click', async (e) 
                     
                     currentSelectedDate = targetBtn.getAttribute('data-date');
                     await loadEventDataForDate(currentSelectedDate, false);
+                    
+                    // Center the clicked pill horizontally if it's off-screen
+                    targetBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                 });
             });
 
             actionSection.scrollIntoView({ behavior: 'smooth' });
-            // Auto-click the first valid date pill to load default UI
             document.querySelector('.district-date-pill').click();
         }
     }
