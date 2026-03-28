@@ -23,6 +23,8 @@ const initialLoader = document.getElementById('initial-loader');
 let isLoginMode = true;
 let currentEventId = null;
 let currentEventPrice = 0; 
+let currentEventType = null;
+let currentSelectedDate = null; // NEW: Track currently selected date
 let allEvents = []; 
 
 function hexToRgbA(hex, alpha) {
@@ -42,20 +44,35 @@ function resetGlobalTheme() {
     document.documentElement.style.setProperty('--brand-glow-light', 'rgba(226, 55, 68, 0.15)');
 }
 
+// === NEW DATE UTILS ===
+function getDatesInRange(startDate, endDate) {
+    const dates = [];
+    let curr = new Date(startDate);
+    curr.setHours(0,0,0,0);
+    let end = new Date(endDate);
+    end.setHours(0,0,0,0);
+    
+    while(curr <= end) {
+        dates.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+    }
+    return dates;
+}
+
+function formatDate(dateObj) {
+    return dateObj.toISOString().split('T')[0];
+}
+
 const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
     socket.on('seatUpdate', async (data) => {
-        if (String(currentEventId) === String(data.eventId)) {
-            if (!seatedView.classList.contains('d-none')) {
-                await softUpdateSeats(currentEventId);
-            }
+        // ONLY update UI if the socket event matches the event AND the specific date currently viewed
+        if (String(currentEventId) === String(data.eventId) && currentSelectedDate === data.date) {
+            await loadEventDataForDate(currentSelectedDate, true); 
         }
     });
-
-    socket.on('eventUpdate', async () => {
-        await refreshGlobalEvents();
-    });
+    socket.on('eventUpdate', async () => { await refreshGlobalEvents(); });
 }
 
 function handlePossibleForceLogout(data) {
@@ -69,7 +86,6 @@ function handlePossibleForceLogout(data) {
 
 function checkEventExpirations() {
     const now = new Date();
-
     allEvents.forEach(e => {
         const isExpired = now > new Date(e.endDate);
         const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
@@ -86,7 +102,6 @@ function checkEventExpirations() {
         }
     });
 }
-
 setInterval(checkEventExpirations, 10000);
 
 async function refreshGlobalEvents() {
@@ -94,91 +109,9 @@ async function refreshGlobalEvents() {
         const timestamp = new Date().getTime();
         const res = await fetch(`/api/events?t=${timestamp}`);
         if (!res.ok) throw new Error("Server not responding correctly");
-        
-        const freshEvents = await res.json();
-        allEvents = freshEvents; 
-
-        freshEvents.forEach(e => {
-            const btn = document.querySelector(`.select-event-btn[data-id="${e._id}"]`);
-            if (btn && !btn.disabled) { 
-                btn.setAttribute('data-available', e.capacity - e.ticketsSold);
-            }
-        });
-
-        if (currentEventId && !generalView.classList.contains('d-none')) {
-            const currentEvent = freshEvents.find(e => e._id === currentEventId);
-            if (currentEvent) {
-                const available = currentEvent.capacity - currentEvent.ticketsSold;
-                const ticketsLeftEl = document.getElementById('tickets-left');
-                const qtyInput = document.getElementById('general-qty');
-                const bookBtn = document.getElementById('book-general-btn');
-
-                if (parseInt(ticketsLeftEl.innerText) !== available) {
-                    ticketsLeftEl.innerText = available;
-                    ticketsLeftEl.style.transition = 'color 0.3s ease';
-                    ticketsLeftEl.style.color = '#10b981'; 
-                    setTimeout(() => ticketsLeftEl.style.color = '', 1000);
-                }
-
-                qtyInput.max = available;
-                
-                if (available <= 0) {
-                    qtyInput.value = 0;
-                    qtyInput.disabled = true;
-                    bookBtn.disabled = true;
-                    bookBtn.innerText = "Sold Out";
-                    document.getElementById('general-total').innerText = '0';
-                } else {
-                    qtyInput.disabled = false;
-                    bookBtn.disabled = false;
-                    bookBtn.innerText = "Secure Tickets Now";
-                    
-                    if (qtyInput.value === '' || parseInt(qtyInput.value) > available) {
-                        qtyInput.value = available > 0 ? available : 1;
-                        document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice) || 0;
-                    }
-                }
-            }
-        }
-        
+        allEvents = await res.json(); 
         checkEventExpirations(); 
-        
-    } catch(err) {
-        console.error("Live sync failed", err);
-    }
-}
-
-async function softUpdateSeats(eventId) {
-    try {
-        const timestamp = new Date().getTime();
-        const res = await fetch(`/api/seats/${eventId}?t=${timestamp}`);
-        const dbSeats = await res.json();
-        let changed = false;
-
-        dbSeats.forEach(seat => {
-            const seatBtn = document.querySelector(`.bms-seat[data-id="${seat.seatId}"]`);
-            if (seatBtn) {
-                const isCurrentlyBooked = seatBtn.classList.contains('booked');
-                const isDbBooked = seat.status === 'Booked';
-
-                if (isDbBooked && !isCurrentlyBooked) {
-                    seatBtn.className = 'bms-seat booked disabled';
-                    changed = true;
-                } else if (!isDbBooked && isCurrentlyBooked) {
-                    seatBtn.className = 'bms-seat available';
-                    changed = true;
-                }
-            }
-        });
-
-        if (changed) {
-            const selectedCount = document.querySelectorAll('.bms-seat.selected').length;
-            document.getElementById('book-seats-btn').disabled = selectedCount === 0;
-            document.getElementById('seated-total').innerText = (selectedCount * currentEventPrice);
-        }
-    } catch (err) {
-        console.error("Error live-updating seats.");
-    }
+    } catch(err) { console.error("Live sync failed", err); }
 }
 
 if (homeLogo) {
@@ -191,10 +124,7 @@ if (homeLogo) {
             actionSection.classList.add('d-none'); 
             bookingSection.classList.remove('d-none'); 
             
-            if (searchBar) {
-                searchBar.value = '';
-                displayEvents(allEvents);
-            }
+            if (searchBar) { searchBar.value = ''; displayEvents(allEvents); }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     });
@@ -220,65 +150,42 @@ authForm.addEventListener('submit', async (e) => {
         const data = await res.json();
         
         if (data.success) {
-            if (isLoginMode) {
-                showBookingScreen(data.username, data.isAdmin);
-            } else {
+            if (isLoginMode) showBookingScreen(data.username, data.isAdmin);
+            else {
                 alert(data.message);
-                isLoginMode = true;
-                authTitle.innerText = 'Login';
-                authBtn.innerText = 'Login';
-                toggleAuth.innerText = 'Need an account? Sign up here.';
-                passwordInput.value = '';
+                isLoginMode = true; authTitle.innerText = 'Login'; authBtn.innerText = 'Login';
+                toggleAuth.innerText = 'Need an account? Sign up here.'; passwordInput.value = '';
             }
         } else {
-            if (data.notFound && isLoginMode) {
-                if (confirm(data.message)) {
-                    toggleAuth.click(); 
-                }
-            } else {
-                alert(data.message || 'Error occurred');
-            }
+            if (data.notFound && isLoginMode) { if (confirm(data.message)) toggleAuth.click(); } 
+            else alert(data.message || 'Error occurred');
         }
-    } catch (err) {
-        alert("Server error. Please try again.");
-    }
+    } catch (err) { alert("Server error. Please try again."); }
 });
 
 function showBookingScreen(username, isAdmin = false) {
-    authSection.classList.add('d-none');
-    profileSection.classList.add('d-none'); 
-    ticketsSection.classList.add('d-none');
-    bookingSection.classList.remove('d-none');
-    userDisplay.classList.remove('d-none');
-    usernameBadge.innerText = username;
+    authSection.classList.add('d-none'); profileSection.classList.add('d-none'); 
+    ticketsSection.classList.add('d-none'); bookingSection.classList.remove('d-none');
+    userDisplay.classList.remove('d-none'); usernameBadge.innerText = username;
     
     if (isAdmin && !document.getElementById('admin-btn')) {
-        const adminLink = document.createElement('a');
-        adminLink.id = 'admin-btn';
-        adminLink.href = 'admin.html';
-        adminLink.className = 'btn btn-warning btn-sm ms-3 fw-bold';
-        adminLink.innerText = '🛠 Admin Panel';
-        userDisplay.insertBefore(adminLink, document.getElementById('logout-btn'));
+        const adminLink = document.createElement('a'); adminLink.id = 'admin-btn';
+        adminLink.href = 'admin.html'; adminLink.className = 'btn btn-warning btn-sm ms-3 fw-bold';
+        adminLink.innerText = '🛠 Admin Panel'; userDisplay.insertBefore(adminLink, document.getElementById('logout-btn'));
     }
     renderEvents(); 
 }
 
 async function renderEvents() {
-    try {
-        await refreshGlobalEvents();
-        displayEvents(allEvents);
-    } catch (err) {
-        console.error("Error loading events:", err);
-    }
+    try { await refreshGlobalEvents(); displayEvents(allEvents); } 
+    catch (err) { console.error("Error loading events:", err); }
 }
 
 if (searchBar) {
     searchBar.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filteredEvents = allEvents.filter(ev => 
-            ev.title.toLowerCase().includes(searchTerm) || 
-            ev.location.toLowerCase().includes(searchTerm) ||
-            ev.description.toLowerCase().includes(searchTerm)
+            ev.title.toLowerCase().includes(searchTerm) || ev.location.toLowerCase().includes(searchTerm) || ev.description.toLowerCase().includes(searchTerm)
         );
         displayEvents(filteredEvents);
     });
@@ -296,20 +203,17 @@ function getRatingBadge(age) {
 
 function displayEvents(events) {
     const container = document.getElementById('events-container');
-
     if (events.length === 0) {
         container.innerHTML = '<div class="col-12"><p class="text-muted text-center fs-5 mt-4">No events found matching your search.</p></div>';
         return;
     }
 
     const now = new Date();
-
     container.innerHTML = events.map(e => {
         const priceText = `<span class="badge bg-success ms-2 fs-6">₹${e.price || 0}</span>`; 
         const ratingBadge = getRatingBadge(e.ageLimit); 
         const imgHtml = e.imageUrl ? `<img src="${e.imageUrl}" class="event-card-img" alt="${e.title}">` : '';
         const safeTheme = e.themeColor || '#E23744'; 
-        
         const isExpired = now > new Date(e.endDate);
         
         const btnHtml = isExpired 
@@ -317,11 +221,11 @@ function displayEvents(events) {
             : `<button class="btn btn-theme w-100 fw-bold mt-auto select-event-btn py-2" 
                 data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}"
                 data-type="${e.eventType}" data-price="${e.price || 0}" data-theme="${safeTheme}" 
-                data-available="${e.capacity - e.ticketsSold}">Select Event</button>`;
+                data-start="${e.startDate}" data-end="${e.endDate}">Select Event Dates</button>`;
 
         return `
         <div class="col-md-6 col-lg-6 mb-4">
-            <div class="card bg-white shadow-sm border-0 h-100 event-card" style="--card-theme: ${safeTheme};" data-start="${e.startDate}" data-end="${e.endDate}">
+            <div class="card bg-white shadow-sm border-0 h-100 event-card" style="--card-theme: ${safeTheme};">
                 ${imgHtml} 
                 <div class="card-body d-flex flex-column p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -351,9 +255,11 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         const eventId = e.target.getAttribute('data-id');
         const title = e.target.getAttribute('data-title');
         const requiredAge = parseInt(e.target.getAttribute('data-age'));
-        const eventType = e.target.getAttribute('data-type');
-        const availableTickets = parseInt(e.target.getAttribute('data-available'));
+        
+        currentEventType = e.target.getAttribute('data-type');
         currentEventPrice = parseFloat(e.target.getAttribute('data-price')); 
+        const eventStart = e.target.getAttribute('data-start');
+        const eventEnd = e.target.getAttribute('data-end');
 
         if (requiredAge === 99) {
             alert(`⚠️ Specialized Audience (S)\n\nThis event is restricted to specific professionals (e.g., doctors, scientists). Relevant ID/credentials will be required at the venue.`);
@@ -361,25 +267,16 @@ document.getElementById('events-container').addEventListener('click', async (e) 
             const timestamp = new Date().getTime();
             const res = await fetch(`/api/profile?t=${timestamp}`);
             const data = await res.json();
-            
             if (handlePossibleForceLogout(data)) return; 
 
             if (!data.user.dob) {
                 alert(`⚠️ Age Verification Required.\n\nYou must update your Profile with your Date of Birth before booking this event.`);
-                document.getElementById('profile-link').click(); 
-                return;
+                document.getElementById('profile-link').click(); return;
             }
-            
             const userAge = calculateAge(data.user.dob);
-            
             if (userAge < requiredAge) {
-                if (requiredAge === 18) { 
-                    alert(`🛑 Access Denied!\n\nYou are ${userAge} years old. This is an 'A' rated event strictly for adults (18+).`);
-                    return;
-                } else { 
-                    const proceed = confirm(`⚠️ Parental Guidance Advised\n\nYou are ${userAge} years old. This event is rated UA ${requiredAge}+. \n\nDo you have parental permission to book this event?`);
-                    if (!proceed) return;
-                }
+                if (requiredAge === 18) { alert(`🛑 Access Denied!\n\nYou are ${userAge} years old. This is an 'A' rated event strictly for adults (18+).`); return; } 
+                else { const proceed = confirm(`⚠️ Parental Guidance Advised\n\nYou are ${userAge} years old. This event is rated UA ${requiredAge}+. \n\nDo you have parental permission to book this event?`); if (!proceed) return; }
             }
         }
 
@@ -389,12 +286,51 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         
         seatedView.classList.add('d-none');
         generalView.classList.add('d-none');
+        
+        // --- RENDER DATE PILLS ---
+        const dates = getDatesInRange(eventStart, eventEnd);
+        const datesContainer = document.getElementById('date-pills');
+        document.getElementById('date-selection-container').classList.remove('d-none');
+        
+        datesContainer.innerHTML = dates.map(d => {
+            const dateStr = formatDate(d);
+            const displayStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            return `<button class="btn btn-outline-primary fw-bold px-4 py-2 rounded-pill date-pill" data-date="${dateStr}">${displayStr}</button>`;
+        }).join('');
 
-        if (eventType === 'Seated') {
+        // Attach click listeners to new date pills
+        document.querySelectorAll('.date-pill').forEach(pill => {
+            pill.addEventListener('click', async (btnEv) => {
+                document.querySelectorAll('.date-pill').forEach(p => { p.classList.remove('active', 'btn-primary', 'text-white'); p.classList.add('btn-outline-primary'); });
+                btnEv.target.classList.remove('btn-outline-primary');
+                btnEv.target.classList.add('active', 'btn-primary', 'text-white');
+                
+                currentSelectedDate = btnEv.target.getAttribute('data-date');
+                await loadEventDataForDate(currentSelectedDate, false);
+            });
+        });
+
+        actionSection.scrollIntoView({ behavior: 'smooth' });
+        // Auto-click the first date pill to load default UI
+        document.querySelector('.date-pill').click();
+    }
+});
+
+// LOAD SPECIFIC DATA FOR SELECTED DATE
+async function loadEventDataForDate(date, isSoftUpdate = false) {
+    try {
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/events/${currentEventId}/availability?date=${date}&t=${timestamp}`);
+        const data = await res.json();
+        const availableTickets = data.available;
+
+        if (currentEventType === 'Seated') {
+            generalView.classList.add('d-none');
             seatedView.classList.remove('d-none');
-            document.getElementById('seated-total').innerText = '0'; 
-            await renderSeatsForEvent(eventId);
+            if (isSoftUpdate) { await renderSeatsForEvent(currentEventId, date); } // re-rendering full layout to be safe
+            else { document.getElementById('seated-total').innerText = '0'; await renderSeatsForEvent(currentEventId, date); }
         } else {
+            seatedView.classList.add('d-none');
             generalView.classList.remove('d-none');
             
             const qtyInput = document.getElementById('general-qty');
@@ -404,28 +340,24 @@ document.getElementById('events-container').addEventListener('click', async (e) 
             qtyInput.max = availableTickets;
             
             if (availableTickets <= 0) {
-                qtyInput.value = 0;
-                qtyInput.disabled = true;
-                bookBtn.disabled = true;
-                bookBtn.innerText = "Sold Out";
+                qtyInput.value = 0; qtyInput.disabled = true; bookBtn.disabled = true;
+                bookBtn.innerText = "Sold Out for this Day";
                 document.getElementById('general-total').innerText = '0';
             } else {
-                qtyInput.value = 1;
-                qtyInput.disabled = false;
-                bookBtn.disabled = false;
+                if(qtyInput.value == 0 || qtyInput.value > availableTickets) qtyInput.value = 1;
+                qtyInput.disabled = false; bookBtn.disabled = false;
                 bookBtn.innerText = "Secure Tickets Now";
-                document.getElementById('general-total').innerText = currentEventPrice; 
+                document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice); 
             }
         }
-        actionSection.scrollIntoView({ behavior: 'smooth' });
-    }
-});
+    } catch (err) { console.error("Error loading date data:", err); }
+}
 
-async function renderSeatsForEvent(eventId) {
+async function renderSeatsForEvent(eventId, date) {
     try {
-        seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout...</p>';
+        seatMap.innerHTML = '<p class="text-muted text-center">Loading seat layout for selected date...</p>';
         const timestamp = new Date().getTime();
-        const res = await fetch(`/api/seats/${eventId}?t=${timestamp}`);
+        const res = await fetch(`/api/seats/${eventId}?date=${date}&t=${timestamp}`);
         let seats = await res.json();
         
         seats.sort((a, b) => {
@@ -454,11 +386,9 @@ async function renderSeatsForEvent(eventId) {
 
         html += '</div>';
         seatMap.innerHTML = html;
-        document.getElementById('book-seats-btn').disabled = true; 
+        document.getElementById('book-seats-btn').disabled = document.querySelectorAll('.bms-seat.selected').length === 0;
 
-    } catch (err) {
-        console.error("Error loading seats:", err);
-    }
+    } catch (err) { console.error("Error loading seats:", err); }
 }
 
 function generateSeatHTML(seat) {
@@ -468,7 +398,6 @@ function generateSeatHTML(seat) {
 
     let displayNum = seat.seatId.replace(/\D/g, '');
     if (displayNum.length === 1) displayNum = '0' + displayNum; 
-
     return `<button class="${classes}" data-id="${seat.seatId}" title="Seat ${seat.seatId}">${displayNum}</button>`;
 }
 
@@ -483,112 +412,84 @@ seatMap.addEventListener('click', (e) => {
 
 document.getElementById('general-qty').addEventListener('input', (e) => {
     let val = e.target.value;
-    
-    if (val === '') {
-        document.getElementById('general-total').innerText = '0';
-        return;
-    }
-
+    if (val === '') { document.getElementById('general-total').innerText = '0'; return; }
     let qty = parseInt(val) || 0;
     const max = parseInt(e.target.max) || 0;
-
-    if (qty > max) {
-        qty = max;
-        e.target.value = max;
-    }
+    if (qty > max) { qty = max; e.target.value = max; }
     document.getElementById('general-total').innerText = (qty * currentEventPrice);
 });
 
 document.getElementById('general-qty').addEventListener('blur', (e) => {
     const max = parseInt(e.target.max) || 0;
     if (max > 0 && (e.target.value === '' || parseInt(e.target.value) < 1)) {
-        e.target.value = 1;
-        document.getElementById('general-total').innerText = currentEventPrice;
+        e.target.value = 1; document.getElementById('general-total').innerText = currentEventPrice;
     }
 });
 
+// BOOKING BUTTONS (Now passing selectedDate)
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
-    if (selectedSeats.length === 0) return;
+    if (selectedSeats.length === 0 || !currentSelectedDate) return;
 
     const btn = e.target;
-    const originalText = btn.innerText;
-    btn.innerText = 'Processing...';
-    btn.disabled = true;
+    const originalText = btn.innerText; btn.innerText = 'Processing...'; btn.disabled = true;
 
     try {
         const res = await fetch('/api/events/book-seats', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: currentEventId, seats: selectedSeats })
+            body: JSON.stringify({ eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate })
         });
         const data = await res.json();
         if (handlePossibleForceLogout(data)) return;
 
         if (data.success) {
             document.getElementById('seated-total').innerText = '0'; 
-            await renderSeatsForEvent(currentEventId);
+            await renderSeatsForEvent(currentEventId, currentSelectedDate);
             setTimeout(() => alert(data.message), 10); 
         } else {
-            await softUpdateSeats(currentEventId); 
+            await loadEventDataForDate(currentSelectedDate, true); 
             setTimeout(() => alert(data.message), 10);
         }
-    } catch (err) {
-        alert("Booking failed. Please check your internet connection.");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = document.querySelectorAll('.bms-seat.selected').length === 0;
-    }
+    } catch (err) { alert("Booking failed. Please check your internet connection.");
+    } finally { btn.innerText = originalText; btn.disabled = document.querySelectorAll('.bms-seat.selected').length === 0; }
 });
 
 document.getElementById('book-general-btn').addEventListener('click', async (e) => {
     const qtyInput = document.getElementById('general-qty');
-    const qty = parseInt(qtyInput.value);
-    const max = parseInt(qtyInput.max);
+    const qty = parseInt(qtyInput.value); const max = parseInt(qtyInput.max);
     
     if (qty > max) { alert("You cannot book more than the available tickets!"); return; }
+    if (!currentSelectedDate) { alert("Please select a date first."); return; }
 
-    const btn = e.target;
-    const originalText = btn.innerText;
-    btn.innerText = 'Processing...';
-    btn.disabled = true;
+    const btn = e.target; const originalText = btn.innerText; btn.innerText = 'Processing...'; btn.disabled = true;
 
     try {
         const res = await fetch('/api/events/book-general', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: currentEventId, qty: qty })
+            body: JSON.stringify({ eventId: currentEventId, qty: qty, selectedDate: currentSelectedDate })
         });
         const data = await res.json();
-        
         if (handlePossibleForceLogout(data)) return;
 
         if (data.success) {
-            qtyInput.value = 1;
-            document.getElementById('general-total').innerText = currentEventPrice;
-            await refreshGlobalEvents(); 
+            qtyInput.value = 1; document.getElementById('general-total').innerText = currentEventPrice;
+            await loadEventDataForDate(currentSelectedDate, true); 
             setTimeout(() => alert(data.message), 10);
         } else {
-            await refreshGlobalEvents();
+            await loadEventDataForDate(currentSelectedDate, true);
             setTimeout(() => alert(data.message), 10);
         }
-    } catch (err) {
-        alert("Booking failed.");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
+    } catch (err) { alert("Booking failed.");
+    } finally { btn.innerText = originalText; btn.disabled = false; }
 });
 
 
 document.getElementById('my-tickets-link').addEventListener('click', async (e) => {
     e.preventDefault();
     resetGlobalTheme();
-    bookingSection.classList.add('d-none');
-    profileSection.classList.add('d-none');
-    actionSection.classList.add('d-none');
-    ticketsSection.classList.remove('d-none');
-
+    bookingSection.classList.add('d-none'); profileSection.classList.add('d-none'); actionSection.classList.add('d-none'); ticketsSection.classList.remove('d-none');
     const container = document.getElementById('my-tickets-container');
     container.innerHTML = '<p class="text-center text-muted">Loading your tickets...</p>';
 
@@ -596,13 +497,9 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
         const timestamp = new Date().getTime();
         const res = await fetch(`/api/my-tickets?t=${timestamp}`);
         const tickets = await res.json();
-        
         if (handlePossibleForceLogout(tickets)) return;
 
-        if (tickets.length === 0) {
-            container.innerHTML = '<p class="text-center text-muted fs-5">You have no booked tickets yet.</p>';
-            return;
-        }
+        if (tickets.length === 0) { container.innerHTML = '<p class="text-center text-muted fs-5">You have no booked tickets yet.</p>'; return; }
 
         container.innerHTML = tickets.map(t => `
             <div class="col-md-6 mb-4">
@@ -611,9 +508,9 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
                         <div class="pe-3">
                             <h5 class="fw-bold text-dark mb-1">${t.eventTitle}</h5>
                             <p class="text-muted small mb-2">📍 ${t.location}</p>
-                            <p class="mb-1 small"><strong>Date:</strong> ${new Date(t.startDate).toLocaleString()}</p>
+                            <p class="mb-1 small"><strong>Date:</strong> ${new Date(t.bookingDate).toLocaleDateString()}</p>
                             ${t.eventType === 'Seated' ? `<p class="mb-0 text-success fw-bold">Seat: ${t.seatId}</p>` : `<p class="mb-0 text-primary fw-bold">General Admission</p><p class="mb-0 text-muted small" style="font-size: 11px;">ID: ${t.seatId}</p>`}
-                            <button class="btn btn-outline-danger btn-sm mt-3 fw-bold cancel-ticket-btn" data-eventid="${t.eventId}" data-seatid="${t.seatId}">Cancel Ticket</button>
+                            <button class="btn btn-outline-danger btn-sm mt-3 fw-bold cancel-ticket-btn" data-eventid="${t.eventId}" data-seatid="${t.seatId}" data-date="${t.bookingDate}">Cancel Ticket</button>
                         </div>
                         <div class="qr-code-box bg-light p-2 rounded border shadow-sm" id="qr-${t.seatId}"></div>
                     </div>
@@ -624,83 +521,57 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
         tickets.forEach(t => {
             const qrContainer = document.getElementById(`qr-${t.seatId}`);
             if (qrContainer && typeof QRCode !== 'undefined') {
-                const qrDataString = `TicketMaster Pro\nEvent: ${t.eventTitle}\nDate: ${new Date(t.startDate).toLocaleString()}\nSeat: ${t.seatId}`;
+                const qrDataString = `TicketMaster Pro\nEvent: ${t.eventTitle}\nDate: ${new Date(t.bookingDate).toLocaleDateString()}\nSeat: ${t.seatId}`;
                 new QRCode(qrContainer, { text: qrDataString, width: 90, height: 90, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
             }
         });
-    } catch (err) {
-        container.innerHTML = '<p class="text-danger text-center">Failed to load tickets.</p>';
-    }
+    } catch (err) { container.innerHTML = '<p class="text-danger text-center">Failed to load tickets.</p>'; }
 });
 
 document.getElementById('my-tickets-container').addEventListener('click', async (e) => {
     if (e.target.classList.contains('cancel-ticket-btn')) {
         const eventId = e.target.getAttribute('data-eventid');
         const seatId = e.target.getAttribute('data-seatid');
+        const bookingDate = e.target.getAttribute('data-date'); // Must pass date to free up exactly that day
 
         if (!confirm('Are you sure you want to cancel this ticket? It will be removed immediately.')) return;
-
-        e.target.disabled = true;
-        e.target.innerText = "Cancelling...";
+        e.target.disabled = true; e.target.innerText = "Cancelling...";
 
         try {
             const res = await fetch('/api/events/cancel-booking', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eventId, seatId })
+                body: JSON.stringify({ eventId, seatId, bookingDate })
             });
             const data = await res.json();
-            
             if (handlePossibleForceLogout(data)) return;
 
-            if (data.success) {
-                document.getElementById('my-tickets-link').click(); 
-            } else {
-                alert(data.message);
-                e.target.disabled = false;
-                e.target.innerText = "Cancel Ticket";
-            }
-        } catch (err) {
-            alert('Cancellation failed due to a network error.');
-            e.target.disabled = false;
-            e.target.innerText = "Cancel Ticket";
-        }
+            if (data.success) document.getElementById('my-tickets-link').click(); 
+            else { alert(data.message); e.target.disabled = false; e.target.innerText = "Cancel Ticket"; }
+        } catch (err) { alert('Cancellation failed due to a network error.'); e.target.disabled = false; e.target.innerText = "Cancel Ticket"; }
     }
 });
 
-document.getElementById('back-to-booking-from-tickets').addEventListener('click', () => {
-    ticketsSection.classList.add('d-none');
-    bookingSection.classList.remove('d-none');
-});
+document.getElementById('back-to-booking-from-tickets').addEventListener('click', () => { ticketsSection.classList.add('d-none'); bookingSection.classList.remove('d-none'); });
 
 function calculateAge(dobString) {
     if (!dobString) return '';
-    const dob = new Date(dobString);
-    const diffMs = Date.now() - dob.getTime();
+    const dob = new Date(dobString); const diffMs = Date.now() - dob.getTime();
     const ageDt = new Date(diffMs); 
     return Math.abs(ageDt.getUTCFullYear() - 1970);
 }
 
 const dobInput = document.getElementById('profile-dob');
 const ageInput = document.getElementById('profile-age');
-if(dobInput) {
-    dobInput.addEventListener('change', () => { ageInput.value = calculateAge(dobInput.value); });
-}
+if(dobInput) dobInput.addEventListener('change', () => { ageInput.value = calculateAge(dobInput.value); });
 
 document.getElementById('profile-link').addEventListener('click', async (e) => {
-    e.preventDefault();
-    resetGlobalTheme();
-    document.getElementById('profile-alert').classList.add('d-none');
-    bookingSection.classList.add('d-none');
-    ticketsSection.classList.add('d-none');
-    profileSection.classList.remove('d-none');
-    actionSection.classList.add('d-none');
+    e.preventDefault(); resetGlobalTheme(); document.getElementById('profile-alert').classList.add('d-none');
+    bookingSection.classList.add('d-none'); ticketsSection.classList.add('d-none'); profileSection.classList.remove('d-none'); actionSection.classList.add('d-none');
     
     try {
-        const timestamp = new Date().getTime();
-        const res = await fetch(`/api/profile?t=${timestamp}`);
+        const timestamp = new Date().getTime(); const res = await fetch(`/api/profile?t=${timestamp}`);
         const data = await res.json();
-        
         if (handlePossibleForceLogout(data)) return;
 
         if (data.success) {
@@ -709,121 +580,72 @@ document.getElementById('profile-link').addEventListener('click', async (e) => {
             document.getElementById('profile-email').value = data.user.email || '';
             document.getElementById('profile-phone').value = data.user.phone || '';
             document.getElementById('profile-address').value = data.user.address || '';
-            
             if (data.user.dob) {
                 const dateString = new Date(data.user.dob).toISOString().split('T')[0];
-                dobInput.value = dateString;
-                ageInput.value = calculateAge(dateString);
-            } else {
-                dobInput.value = ''; ageInput.value = '';
-            }
+                dobInput.value = dateString; ageInput.value = calculateAge(dateString);
+            } else { dobInput.value = ''; ageInput.value = ''; }
         }
-    } catch (err) {
-        console.error("Failed to load profile data.");
-    }
+    } catch (err) { console.error("Failed to load profile data."); }
 });
 
-document.getElementById('back-to-booking').addEventListener('click', () => {
-    profileSection.classList.add('d-none');
-    bookingSection.classList.remove('d-none');
-});
+document.getElementById('back-to-booking').addEventListener('click', () => { profileSection.classList.add('d-none'); bookingSection.classList.remove('d-none'); });
 
 document.getElementById('profile-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitBtn = document.getElementById('profile-submit-btn');
-    const alertBox = document.getElementById('profile-alert');
-    
-    const newUsername = document.getElementById('profile-username').value.trim();
-    const fullName = document.getElementById('profile-fullname').value;
-    const email = document.getElementById('profile-email').value;
-    const phone = document.getElementById('profile-phone').value;
-    const dob = document.getElementById('profile-dob').value;
-    const address = document.getElementById('profile-address').value;
+    const submitBtn = document.getElementById('profile-submit-btn'); const alertBox = document.getElementById('profile-alert');
+    const newUsername = document.getElementById('profile-username').value.trim(); const fullName = document.getElementById('profile-fullname').value;
+    const email = document.getElementById('profile-email').value; const phone = document.getElementById('profile-phone').value;
+    const dob = document.getElementById('profile-dob').value; const address = document.getElementById('profile-address').value;
 
-    submitBtn.disabled = true;
-    submitBtn.innerText = "Saving...";
-    alertBox.classList.add('d-none'); 
+    submitBtn.disabled = true; submitBtn.innerText = "Saving..."; alertBox.classList.add('d-none'); 
 
     try {
         const res = await fetch('/api/profile', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: newUsername, fullName, email, phone, dob, address })
         });
         const data = await res.json();
-        
         if (handlePossibleForceLogout(data)) return;
         
         alertBox.classList.remove('d-none', 'alert-danger', 'alert-success');
-        alertBox.classList.add(data.success ? 'alert-success' : 'alert-danger');
-        alertBox.innerText = data.message;
+        alertBox.classList.add(data.success ? 'alert-success' : 'alert-danger'); alertBox.innerText = data.message;
         
         if(data.success) {
             usernameBadge.innerText = data.newUsername || newUsername;
             setTimeout(() => {
-                profileSection.classList.add('d-none');
-                bookingSection.classList.remove('d-none');
-                alertBox.classList.add('d-none');
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Save Changes";
+                profileSection.classList.add('d-none'); bookingSection.classList.remove('d-none'); alertBox.classList.add('d-none');
+                submitBtn.disabled = false; submitBtn.innerText = "Save Changes";
             }, 1500);
-        } else {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Save Changes";
-        }
+        } else { submitBtn.disabled = false; submitBtn.innerText = "Save Changes"; }
     } catch (err) {
-        alertBox.classList.remove('d-none', 'alert-success');
-        alertBox.classList.add('alert-danger');
-        alertBox.innerText = "Network error. Failed to save.";
-        submitBtn.disabled = false;
-        submitBtn.innerText = "Save Changes";
+        alertBox.classList.remove('d-none', 'alert-success'); alertBox.classList.add('alert-danger'); alertBox.innerText = "Network error. Failed to save.";
+        submitBtn.disabled = false; submitBtn.innerText = "Save Changes";
     }
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
     await fetch('/api/logout', { method: 'POST' });
-    bookingSection.classList.add('d-none');
-    profileSection.classList.add('d-none');
-    ticketsSection.classList.add('d-none');
-    userDisplay.classList.add('d-none');
-    authSection.classList.remove('d-none');
-    
-    actionSection.classList.add('d-none');
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    
+    bookingSection.classList.add('d-none'); profileSection.classList.add('d-none'); ticketsSection.classList.add('d-none');
+    userDisplay.classList.add('d-none'); authSection.classList.remove('d-none'); actionSection.classList.add('d-none');
+    document.getElementById('username').value = ''; document.getElementById('password').value = '';
     if (searchBar) searchBar.value = '';
-    
-    const adminBtn = document.getElementById('admin-btn');
-    if (adminBtn) adminBtn.remove();
+    const adminBtn = document.getElementById('admin-btn'); if (adminBtn) adminBtn.remove();
 });
 
-// 🚨 THE FIX: A bulletproof cold-start handler that won't freeze the UI
 (async function initializeApp() {
     try {
-        // Sets a strict timeout limit. If the server takes longer than 60 seconds to wake up, kill the request.
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000); 
-
         const timestamp = new Date().getTime();
         const res = await fetch(`/api/check-session?t=${timestamp}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        
-        // If Render returns a 502/504 HTML error page because it's still booting, catch it explicitly!
         if (!res.ok) throw new Error("Server returned an error while booting.");
-
         const data = await res.json();
-        
         if (initialLoader) initialLoader.classList.add('d-none');
-        
-        if (data.loggedIn) {
-            showBookingScreen(data.username, data.isAdmin);
-        } else {
-            if (authSection) authSection.classList.remove('d-none');
-        }
+        if (data.loggedIn) showBookingScreen(data.username, data.isAdmin);
+        else if (authSection) authSection.classList.remove('d-none');
     } catch (err) {
         console.error("Initialization caught by Cold Start handler or Timeout.", err);
-        // Force the UI to unlock so the user isn't staring at a spinner forever
         if (initialLoader) initialLoader.classList.add('d-none');
         if (authSection) authSection.classList.remove('d-none');
     }
