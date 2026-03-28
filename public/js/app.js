@@ -44,9 +44,6 @@ function resetGlobalTheme() {
     document.documentElement.style.setProperty('--brand-glow-light', 'rgba(226, 55, 68, 0.15)');
 }
 
-// === BULLETPROOF TIMEZONE DATE UTILS ===
-
-// Custom function instead of toISOString() to prevent UTC timezone shifts
 function formatLocalYYYYMMDD(dateObj) {
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -56,7 +53,6 @@ function formatLocalYYYYMMDD(dateObj) {
 
 function getDatesInRange(startDate, endDate) {
     const dates = [];
-    
     let curr = new Date(startDate);
     curr.setHours(0,0,0,0);
     
@@ -66,10 +62,7 @@ function getDatesInRange(startDate, endDate) {
     let today = new Date();
     today.setHours(0,0,0,0);
 
-    // If the event started in the past, skip to Today
-    if (curr < today) {
-        curr = new Date(today.getTime());
-    }
+    if (curr < today) curr = new Date(today.getTime());
     
     while(curr <= end) {
         dates.push(new Date(curr.getTime()));
@@ -309,7 +302,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         if (dates.length === 0) {
             datesContainer.innerHTML = '<p class="text-danger w-100 text-center fw-bold mt-2">No upcoming dates available. Event has ended.</p>';
         } else {
-            // Strict Timezone Matching
             let today = new Date(); 
             today.setHours(0,0,0,0);
             let tomorrow = new Date(today.getTime()); 
@@ -339,7 +331,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
                         </button>`;
             }).join('');
 
-            // Attach click listeners
             document.querySelectorAll('.district-date-pill').forEach(pill => {
                 pill.addEventListener('click', async (btnEv) => {
                     const targetBtn = btnEv.target.closest('.district-date-pill');
@@ -348,8 +339,6 @@ document.getElementById('events-container').addEventListener('click', async (e) 
                     
                     currentSelectedDate = targetBtn.getAttribute('data-date');
                     await loadEventDataForDate(currentSelectedDate, false);
-                    
-                    // Center the clicked pill horizontally if it's off-screen
                     targetBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                 });
             });
@@ -470,13 +459,18 @@ document.getElementById('general-qty').addEventListener('blur', (e) => {
     }
 });
 
-// BOOKING BUTTONS
+// 🚨 BUG FIX: Bulletproof Double-Click Guard & Reliable Recovery
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0 || !currentSelectedDate) return;
 
     const btn = e.target;
-    const originalText = btn.innerText; btn.innerText = 'Processing...'; btn.disabled = true;
+    if (btn.dataset.processing === "true") return; // Blocks spam clicks
+    btn.dataset.processing = "true";
+
+    const originalText = "Confirm Seats"; 
+    btn.innerText = 'Processing...'; 
+    btn.disabled = true;
 
     try {
         const res = await fetch('/api/events/book-seats', {
@@ -495,8 +489,13 @@ document.getElementById('book-seats-btn').addEventListener('click', async (e) =>
             await loadEventDataForDate(currentSelectedDate, true); 
             setTimeout(() => alert(data.message), 10);
         }
-    } catch (err) { alert("Booking failed. Please check your internet connection.");
-    } finally { btn.innerText = originalText; btn.disabled = document.querySelectorAll('.bms-seat.selected').length === 0; }
+    } catch (err) { 
+        alert("Booking failed. Please check your internet connection.");
+    } finally { 
+        btn.innerText = originalText; 
+        btn.disabled = document.querySelectorAll('.bms-seat.selected').length === 0; 
+        btn.dataset.processing = "false"; // Unlocks the button logic safely
+    }
 });
 
 document.getElementById('book-general-btn').addEventListener('click', async (e) => {
@@ -506,7 +505,13 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
     if (qty > max) { alert("You cannot book more than the available tickets!"); return; }
     if (!currentSelectedDate) { alert("Please select a date first."); return; }
 
-    const btn = e.target; const originalText = btn.innerText; btn.innerText = 'Processing...'; btn.disabled = true;
+    const btn = e.target; 
+    if (btn.dataset.processing === "true") return;
+    btn.dataset.processing = "true";
+
+    const originalText = "Secure Tickets Now"; 
+    btn.innerText = 'Processing...'; 
+    btn.disabled = true;
 
     try {
         const res = await fetch('/api/events/book-general', {
@@ -526,7 +531,11 @@ document.getElementById('book-general-btn').addEventListener('click', async (e) 
             setTimeout(() => alert(data.message), 10);
         }
     } catch (err) { alert("Booking failed.");
-    } finally { btn.innerText = originalText; btn.disabled = false; }
+    } finally { 
+        btn.innerText = originalText; 
+        btn.disabled = false; 
+        btn.dataset.processing = "false";
+    }
 });
 
 
