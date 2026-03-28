@@ -1,29 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 /* ==========================================
-   CSS CUSTOM PROPERTIES (THE DESIGN SYSTEM)
-   "By storing my colors, borders, and fonts in the :root selector, 
-   I created a scalable design system. If I want to change the primary brand color from Indigo to Red, 
-   I only change one line of code, and every button, border, and badge in the app updates automatically."
+   CSS CUSTOM PROPERTIES (DISTRICT VIBE)
    ========================================== */
-
 :root {
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --success: #10b981;
-    --success-hover: #059669;
+    /* Zomato/District inspired palette: Stark contrasts, punchy primary */
+    --primary: #E23744; 
+    --primary-hover: #D12633;
+    --success: #1db954;
+    --success-hover: #1aa34a;
     --danger: #ef4444;
     --warning: #f59e0b;
-    --dark: #0f172a;
-    --dark-card: #1e293b;
-    --dark-border: #334155;
+    --dark: #121212;
+    --dark-card: #1c1c1c;
+    --dark-border: #2a2a2a;
     --light: #f8fafc;
-    --bg-color: #f1f5f9;
+    --bg-color: #fbfbfb;
     --card-bg: #ffffff;
     --font-family: 'Plus Jakarta Sans', sans-serif;
+    
+    /* Modern UI Variables */
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-pill: 50px;
+    
+    /* Sophisticated Shadows */
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+    --shadow-glow: 0 8px 24px rgba(226, 55, 68, 0.25);
+    
+    /* Buttery Smooth Animations */
+    --ease-bouncy: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --ease-smooth: cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* CSS RESET: Strips away browser default padding/margins for consistent cross-browser rendering */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -33,220 +44,258 @@
 body {
     font-family: var(--font-family);
     background-color: var(--bg-color);
-    color: #334155;
+    color: #1e293b;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* --- ANIMATIONS --- */
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* --- NAVIGATION BAR --- */
 .navbar {
-    background-color: var(--dark) !important;
-    border-bottom: 1px solid #1e293b;
-    padding: 15px 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    position: sticky; /* Keeps the nav bar pinned to the top when scrolling */
+    background-color: rgba(18, 18, 18, 0.85) !important;
+    backdrop-filter: blur(12px); /* Glassmorphism effect */
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 18px 20px;
+    position: sticky;
     top: 0;
-    z-index: 1000; /* Forces the nav to stay above all other elements */
+    z-index: 1000;
+    transition: var(--ease-smooth) all 0.3s;
 }
 .navbar-brand { 
-    font-size: 1.5rem; 
+    font-size: 1.4rem; 
     font-weight: 800; 
     color: white !important; 
     letter-spacing: -0.5px;
 }
 .navbar.bg-warning {
     background-color: var(--warning) !important;
+    backdrop-filter: none;
 }
 .navbar.bg-warning .navbar-brand {
     color: var(--dark) !important;
 }
 
-/* --- MODULAR CARD SYSTEM --- */
+/* --- MODULAR CARD SYSTEM (PREMIUM UI) --- */
 .card {
     background-color: var(--card-bg);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    border: 1px solid #e2e8f0;
-    /* CSS TRANSITIONS: Hardware-accelerated animations for smooth hover states */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: all 0.4s var(--ease-smooth);
     overflow: hidden;
+    animation: slideUpFade 0.6s var(--ease-smooth) forwards;
 }
+
+.event-card {
+    cursor: pointer;
+}
+
 .event-card:hover {
-    transform: translateY(-3px); /* Lifts the card slightly off the page */
-    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    transform: translateY(-6px) scale(1.01); 
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(0,0,0,0.08);
 }
 
 .event-card-img {
     width: 100%;
-    height: 250px; 
-    object-fit: cover; /* Ensures the image fills the box perfectly without stretching/distorting */
-    border-top-left-radius: 12px; 
-    border-top-right-radius: 12px;
+    height: 280px; 
+    object-fit: cover;
+    transition: transform 0.6s var(--ease-smooth);
 }
 
-.event-card img + .card-body {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+/* Subtle zoom effect on the image when hovering the card */
+.event-card:hover .event-card-img {
+    transform: scale(1.05);
+}
+
+.card-body {
+    position: relative;
+    background: white; /* Ensures image zoom doesn't bleed */
 }
 
 /* --- TYPOGRAPHY HIERARCHY --- */
-h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--dark); letter-spacing: -0.5px; }
+h1, h2, h3, h4, h5, h6 { font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
 .text-primary { color: var(--primary) !important; }
 .text-success { color: var(--success) !important; }
 .text-danger { color: var(--danger) !important; }
 .text-warning { color: var(--warning) !important; }
 
 /* --- FORMS & INPUTS --- */
-.form-label { font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 0.9rem; }
+.form-label { font-weight: 700; color: #334155; margin-bottom: 8px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
 .form-control, .form-select {
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    border: 2px solid transparent;
+    padding: 14px 18px;
     font-size: 1rem;
-    font-weight: 500;
-    background-color: #f8fafc;
-    color: #334155;
+    font-weight: 600;
+    background-color: #f1f5f9;
+    color: #1e293b;
+    transition: all 0.3s var(--ease-smooth);
 }
 .form-control:focus, .form-select:focus { 
     background-color: #ffffff;
     border-color: var(--primary);
-    /* Soft glowing ring around active inputs for accessibility */
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); 
+    box-shadow: 0 8px 16px rgba(226, 55, 68, 0.1); 
     outline: none;
+    transform: translateY(-2px);
 }
 
-/* --- INTERACTIVE BUTTONS --- */
+/* --- INTERACTIVE BUTTONS (PILL STYLE) --- */
 .btn {
-    border-radius: 8px;
-    font-weight: 600;
-    padding: 12px 20px;
-    transition: background-color 0.2s, transform 0.1s;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    padding: 14px 28px;
+    transition: all 0.3s var(--ease-bouncy);
     letter-spacing: 0.3px;
     border: none;
+    text-transform: uppercase;
+    font-size: 0.9rem;
 }
-/* Micro-interaction: The button physically 'clicks' downward when pressed */
-.btn:active { transform: scale(0.98); } 
-.btn-sm { padding: 8px 16px; font-size: 0.875rem; }
 
-.btn-primary { background-color: var(--primary); color: white; }
-.btn-primary:hover { background-color: var(--primary-hover); color: white; }
+.btn:active { transform: scale(0.95); } 
+.btn-sm { padding: 10px 20px; font-size: 0.8rem; }
 
-.btn-success { background-color: var(--success); color: white; }
-.btn-success:hover { background-color: var(--success-hover); color: white; }
+.btn-primary { background-color: var(--primary); color: white; box-shadow: var(--shadow-glow); }
+.btn-primary:hover { background-color: var(--primary-hover); color: white; box-shadow: 0 12px 28px rgba(226, 55, 68, 0.35); transform: translateY(-2px); }
+
+.btn-success { background-color: var(--success); color: white; box-shadow: 0 8px 24px rgba(29, 185, 84, 0.25); }
+.btn-success:hover { background-color: var(--success-hover); color: white; transform: translateY(-2px); }
 
 .btn-danger { background-color: var(--danger); color: white; }
-.btn-danger:hover { background-color: #dc2626; color: white; }
-
-.btn-warning { background-color: var(--warning); color: var(--dark); }
-.btn-warning:hover { background-color: #d97706; }
+.btn-outline-primary { border: 2px solid var(--primary); color: var(--primary); background: transparent; }
+.btn-outline-primary:hover { background-color: var(--primary); color: white; box-shadow: var(--shadow-glow); }
 
 .badge {
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-weight: 700;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-weight: 800;
     letter-spacing: 0.5px;
+    font-size: 0.75rem;
 }
 
 /* ==========================================
    CUSTOM COMPONENT: SEAT SELECTION MATRIX
-   "I used CSS Flexbox extensively here to perfectly align the 
-   dynamic grid of seats generated by JavaScript, regardless of screen width."
    ========================================== */
 #seated-view {
     background-color: transparent;
     box-shadow: none;
     padding: 0;
+    animation: slideUpFade 0.5s var(--ease-smooth) forwards;
 }
 
 .bms-seat {
-    width: 35px;
-    height: 35px;
-    border-radius: 6px; 
+    width: 38px;
+    height: 38px;
+    border-radius: 10px; 
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     background-color: white;
-    border: 1.5px solid #10b981; 
-    color: #10b981;
+    border: 2px solid #e2e8f0; 
+    color: #94a3b8;
     cursor: pointer;
-    margin: 0 4px;
+    margin: 0 5px;
+    transition: all 0.3s var(--ease-bouncy);
 }
 
-/* Pseudo-selector: Only hoverable if the seat does NOT have the .disabled class */
 .bms-seat:hover:not(.disabled) {
-    background-color: #d1fae5;
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: scale(1.15) translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
 }
 
-/* Class toggled by JavaScript when user clicks */
 .bms-seat.selected {
-    background-color: #10b981;
+    background-color: var(--primary);
     color: white;
-    border-color: #10b981;
+    border-color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-glow);
 }
 
-/* Class toggled by WebSocket when someone else buys the seat */
 .bms-seat.booked {
-    border-color: #e2e8f0;
-    background-color: #f8fafc;
+    border-color: transparent;
+    background-color: #f1f5f9;
     color: #cbd5e1;
-    pointer-events: none; /* Physically prevents mouse clicks at the CSS layer */
+    opacity: 0.6;
+    pointer-events: none; 
 }
 
 /* The curved 'Screen' visual element */
 .bms-screen-container { 
-    margin-top: 20px; 
-    margin-bottom: 50px; 
+    margin-top: 30px; 
+    margin-bottom: 60px; 
+    perspective: 800px;
 }
 .bms-screen {
-    width: 80%;
-    max-width: 450px;
-    height: 30px;
-    /* CSS trick to create an arch/curve using border-radius */
+    width: 85%;
+    max-width: 500px;
+    height: 40px;
     border-radius: 50% 50% 0 0 / 100% 100% 0 0; 
-    background-color: rgba(99, 102, 241, 0.1);
-    border-top: 2px solid #6366f1; 
+    background: linear-gradient(to bottom, rgba(226, 55, 68, 0.15), transparent);
+    border-top: 3px solid var(--primary); 
     margin: 0 auto;
+    box-shadow: 0 -10px 30px rgba(226, 55, 68, 0.15);
 }
 .bms-screen-text {
-    font-size: 13px;
-    color: #6366f1;
+    font-size: 12px;
+    color: var(--primary);
     font-weight: 800;
-    letter-spacing: 5px;
+    letter-spacing: 8px;
     text-transform: uppercase;
     text-align: center;
-    margin-top: -15px; 
+    margin-top: -10px; 
+    opacity: 0.8;
 }
 
 .seat-legend {
     display: flex;
     justify-content: center;
-    gap: 25px;
-    margin-top: 30px;
-    margin-bottom: 20px;
+    gap: 30px;
+    margin-top: 40px;
+    margin-bottom: 30px;
+    background: white;
+    padding: 15px;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex;
+    left: 50%;
+    position: relative;
+    transform: translateX(-50%);
 }
 .legend-item {
     display: flex;
     align-items: center;
-    font-size: 14px;
-    color: #64748b;
-    font-weight: 600;
+    font-size: 13px;
+    color: #475569;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 .legend-box {
     width: 20px;
     height: 20px;
-    border-radius: 4px;
-    margin-right: 8px;
+    border-radius: 6px;
+    margin-right: 10px;
 }
-.legend-available { border: 1.5px solid #10b981; background-color: white; }
-.legend-selected { background-color: #10b981; border: 1.5px solid #10b981; }
-.legend-sold { background-color: #f8fafc; border: 1.5px solid #e2e8f0; }
+.legend-available { border: 2px solid #e2e8f0; background-color: white; }
+.legend-selected { background-color: var(--primary); border: 2px solid var(--primary); box-shadow: 0 4px 10px rgba(226, 55, 68, 0.3); }
+.legend-sold { background-color: #f1f5f9; border: 2px solid transparent; opacity: 0.6; }
 
 .booking-action-bar {
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 20px 30px;
+    background-color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: 24px 35px;
+    box-shadow: var(--shadow-lg);
 }
 
 .qr-code-box {
@@ -256,13 +305,11 @@ h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--dark); letter-spacing: -
     align-items: center;
     justify-content: center;
     background-color: white;
+    border-radius: var(--radius-md);
 }
 
 /* ==========================================
-   CSS STATE TARGETING: DARK MODE FOR ADMIN PANEL
-   "By appending the 'body.bg-dark' selector, I forced 
-   CSS to overwrite the default variables only when the user is on the Admin page. 
-   This separates concerns cleanly without needing two separate CSS files."
+   DARK MODE FOR ADMIN PANEL
    ========================================== */
 body.bg-dark {
     background-color: var(--dark) !important;
@@ -270,55 +317,62 @@ body.bg-dark {
     color: var(--light);
 }
 
-.analytics-card-revenue { background-color: #10b981 !important; border: none; }
-.analytics-card-tickets { background-color: #3b82f6 !important; border: none; }
-.analytics-card-events { background-color: #8b5cf6 !important; border: none; }
-.analytics-card-users { background-color: #f59e0b !important; border: none; }
+.analytics-card-revenue { background: linear-gradient(135deg, #10b981, #059669) !important; border: none; }
+.analytics-card-tickets { background: linear-gradient(135deg, #3b82f6, #2563eb) !important; border: none; }
+.analytics-card-events { background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important; border: none; }
+.analytics-card-users { background: linear-gradient(135deg, #f59e0b, #d97706) !important; border: none; }
 
 .analytics-card-revenue h6, .analytics-card-tickets h6, .analytics-card-events h6, .analytics-card-users h6 {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    letter-spacing: 1px;
 }
 .analytics-card-revenue h2, .analytics-card-tickets h2, .analytics-card-events h2, .analytics-card-users h2 {
     color: #ffffff !important;
+    font-size: 2.5rem;
 }
 
 body.bg-dark .card:not(.analytics-card-revenue):not(.analytics-card-tickets):not(.analytics-card-events):not(.analytics-card-users) {
     background-color: var(--dark-card) !important;
     border: 1px solid var(--dark-border);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 body.bg-dark .card-header {
-    background-color: #151e2e; 
+    background-color: rgba(255,255,255,0.02); 
     border-bottom: 1px solid var(--dark-border);
     color: white;
+    font-weight: 800;
 }
-body.bg-dark .form-label { color: #cbd5e1; }
+body.bg-dark .form-label { color: #94a3b8; }
 body.bg-dark .form-control, body.bg-dark .form-select {
-    background-color: #0f172a;
-    border-color: #334155;
+    background-color: #121212;
+    border-color: var(--dark-border);
     color: white;
 }
 body.bg-dark .form-control:focus {
     border-color: var(--warning);
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    box-shadow: 0 8px 16px rgba(245, 158, 11, 0.1);
+    background-color: #1a1a1a;
 }
 
 .table-dark {
-    background-color: var(--dark-card);
-    border-radius: 8px;
+    background-color: transparent;
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 .table-dark th {
-    background-color: #151e2e !important; 
+    background-color: rgba(255,255,255,0.03) !important; 
     color: #94a3b8 !important;
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     border-bottom: 2px solid var(--dark-border) !important;
-    padding: 15px;
+    padding: 20px 15px;
 }
 .table-dark td {
     background-color: var(--dark-card) !important;
     border-bottom: 1px solid var(--dark-border) !important;
     color: #e2e8f0;
     vertical-align: middle;
+    padding: 15px;
 }
