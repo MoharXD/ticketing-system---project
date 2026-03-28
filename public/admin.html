@@ -94,8 +94,8 @@
                             <input type="text" id="event-title" class="form-control" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label text-warning">Poster/Image URL</label>
-                            <input type="text" id="event-image" class="form-control" placeholder="https://..." required>
+                            <label class="form-label text-warning">Poster/Image URL <small class="text-muted">(Auto-Theme)</small></label>
+                            <input type="text" id="event-image" class="form-control" placeholder="Paste URL to auto-detect theme color..." required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label text-danger">CBFC Rating</label>
@@ -186,6 +186,7 @@
         </div>
     </footer>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/admin.js"></script> 
 </body>
