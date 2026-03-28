@@ -6,7 +6,8 @@ const MongoStore = require('connect-mongo');
 const bcrypt = require('bcryptjs');         
 const path = require('path');               
 const http = require('http');               
-const { Server } = require('socket.io');    
+const { Server } = require('socket.io');  
+const compression = require('compression'); // 🚀 NEW: Compresses all internet traffic  
 require('dotenv').config();                 
 
 const User = require('./models/User'); 
@@ -22,11 +23,15 @@ const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB
 
 app.set('trust proxy', 1); 
 
+// 🚀 SPEED FIX 1: Shrink JSON and HTML payloads by ~70% before sending
+app.use(compression()); 
+
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(path.join(__dirname, 'public'))); 
 
-// Persist sessions in MongoDB so Render.com sleep cycles don't log you out
+// 🚀 SPEED FIX 2: Cache static files for 1 day so the browser loads them instantly from memory
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' })); 
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
@@ -38,7 +43,6 @@ app.use(session({
 mongoose.connect(DB_URI)
     .then(async () => {
         console.log('✅ Connected to MongoDB');
-        // Force Mongoose to sync the new 3-part unique index for the dates
         await User.syncIndexes(); 
         await Seat.syncIndexes();
     })
@@ -80,7 +84,10 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/admin/signup', async (req, res) => {
     try {
         const { username, password, secretKey } = req.body;
+        
+        // SECURE ADMIN FIX: No hardcoded fallback.
         const validSecret = process.env.ADMIN_SECRET;
+        if (!validSecret) return res.status(500).json({ success: false, message: "Admin configuration missing on server." });
         if (secretKey !== validSecret) return res.status(403).json({ success: false, message: "Invalid Admin Secret Key." });
 
         const cleanUsername = username.trim();
@@ -340,4 +347,5 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         res.json({ success: true, message: "User and tickets deleted." });
     } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
+
 server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
