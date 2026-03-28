@@ -103,11 +103,14 @@ async function refreshGlobalEvents() {
             }
         });
 
+        // 🚨 FIX: Handled Live UI Updates for Sold Out states elegantly
         if (currentEventId && !generalView.classList.contains('d-none')) {
             const currentEvent = freshEvents.find(e => e._id === currentEventId);
             if (currentEvent) {
                 const available = currentEvent.capacity - currentEvent.ticketsSold;
                 const ticketsLeftEl = document.getElementById('tickets-left');
+                const qtyInput = document.getElementById('general-qty');
+                const bookBtn = document.getElementById('book-general-btn');
 
                 if (parseInt(ticketsLeftEl.innerText) !== available) {
                     ticketsLeftEl.innerText = available;
@@ -116,11 +119,23 @@ async function refreshGlobalEvents() {
                     setTimeout(() => ticketsLeftEl.style.color = '', 1000);
                 }
 
-                const qtyInput = document.getElementById('general-qty');
                 qtyInput.max = available;
-                if (parseInt(qtyInput.value) > available) {
-                    qtyInput.value = available > 0 ? available : 1;
-                    document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice) || 0;
+                
+                if (available <= 0) {
+                    qtyInput.value = 0;
+                    qtyInput.disabled = true;
+                    bookBtn.disabled = true;
+                    bookBtn.innerText = "Sold Out";
+                    document.getElementById('general-total').innerText = '0';
+                } else {
+                    qtyInput.disabled = false;
+                    bookBtn.disabled = false;
+                    bookBtn.innerText = "Secure Tickets Now";
+                    
+                    if (qtyInput.value === '' || parseInt(qtyInput.value) > available) {
+                        qtyInput.value = available > 0 ? available : 1;
+                        document.getElementById('general-total').innerText = (parseInt(qtyInput.value) * currentEventPrice) || 0;
+                    }
                 }
             }
         }
@@ -296,7 +311,6 @@ function displayEvents(events) {
         
         const isExpired = now > new Date(e.endDate);
         
-        // 🚨 UPDATE: Using btn-theme instead of btn-outline-primary so the card borders inherit the theme instantly
         const btnHtml = isExpired 
             ? `<button class="btn btn-secondary w-100 fw-bold mt-auto select-event-btn py-2" disabled data-id="${e._id}">Event Ended</button>`
             : `<button class="btn btn-theme w-100 fw-bold mt-auto select-event-btn py-2" 
@@ -304,7 +318,6 @@ function displayEvents(events) {
                 data-type="${e.eventType}" data-price="${e.price || 0}" data-theme="${safeTheme}" 
                 data-available="${e.capacity - e.ticketsSold}">Select Event</button>`;
 
-        // 🚨 UPDATE: Injecting style="--card-theme: ${safeTheme};" into the card container
         return `
         <div class="col-md-6 col-lg-6 mb-4">
             <div class="card bg-white shadow-sm border-0 h-100 event-card" style="--card-theme: ${safeTheme};" data-start="${e.startDate}" data-end="${e.endDate}">
@@ -329,12 +342,10 @@ function displayEvents(events) {
 document.getElementById('events-container').addEventListener('click', async (e) => {
     if (e.target.classList.contains('select-event-btn') && !e.target.disabled) {
         
-        // --- LIVE DYNAMIC THEMING ---
         const activeTheme = e.target.getAttribute('data-theme');
         document.documentElement.style.setProperty('--brand-primary', activeTheme);
         document.documentElement.style.setProperty('--brand-glow', hexToRgbA(activeTheme, 0.35));
         document.documentElement.style.setProperty('--brand-glow-light', hexToRgbA(activeTheme, 0.15));
-        // ------------------------------
 
         const eventId = e.target.getAttribute('data-id');
         const title = e.target.getAttribute('data-title');
@@ -378,16 +389,33 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         seatedView.classList.add('d-none');
         generalView.classList.add('d-none');
 
+        // 🚨 FIX: Handled Sold-Out State Generation
         if (eventType === 'Seated') {
             seatedView.classList.remove('d-none');
             document.getElementById('seated-total').innerText = '0'; 
             await renderSeatsForEvent(eventId);
         } else {
             generalView.classList.remove('d-none');
+            
+            const qtyInput = document.getElementById('general-qty');
+            const bookBtn = document.getElementById('book-general-btn');
+            
             document.getElementById('tickets-left').innerText = availableTickets;
-            document.getElementById('general-qty').max = availableTickets;
-            document.getElementById('general-qty').value = 1;
-            document.getElementById('general-total').innerText = currentEventPrice; 
+            qtyInput.max = availableTickets;
+            
+            if (availableTickets <= 0) {
+                qtyInput.value = 0;
+                qtyInput.disabled = true;
+                bookBtn.disabled = true;
+                bookBtn.innerText = "Sold Out";
+                document.getElementById('general-total').innerText = '0';
+            } else {
+                qtyInput.value = 1;
+                qtyInput.disabled = false;
+                bookBtn.disabled = false;
+                bookBtn.innerText = "Secure Tickets Now";
+                document.getElementById('general-total').innerText = currentEventPrice; 
+            }
         }
         actionSection.scrollIntoView({ behavior: 'smooth' });
     }
@@ -453,8 +481,17 @@ seatMap.addEventListener('click', (e) => {
     }
 });
 
+// 🚨 FIX: Input behavior no longer immediately snaps to 0 if you are just using Backspace to delete the number
 document.getElementById('general-qty').addEventListener('input', (e) => {
-    let qty = parseInt(e.target.value) || 0;
+    let val = e.target.value;
+    
+    // If the box is empty, just let it be empty momentarily and set total to 0
+    if (val === '') {
+        document.getElementById('general-total').innerText = '0';
+        return;
+    }
+
+    let qty = parseInt(val) || 0;
     const max = parseInt(e.target.max) || 0;
 
     if (qty > max) {
@@ -462,6 +499,15 @@ document.getElementById('general-qty').addEventListener('input', (e) => {
         e.target.value = max;
     }
     document.getElementById('general-total').innerText = (qty * currentEventPrice);
+});
+
+// 🚨 FIX: If they click outside an empty box, safely return it to 1
+document.getElementById('general-qty').addEventListener('blur', (e) => {
+    const max = parseInt(e.target.max) || 0;
+    if (max > 0 && (e.target.value === '' || parseInt(e.target.value) < 1)) {
+        e.target.value = 1;
+        document.getElementById('general-total').innerText = currentEventPrice;
+    }
 });
 
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
