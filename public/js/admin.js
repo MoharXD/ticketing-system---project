@@ -36,55 +36,72 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================
-// 🎨 SMART THEME EXTRACTOR
+// 🎨 SMART THEME EXTRACTOR (WITH CORS BYPASS)
 // ==========================================
-document.getElementById('event-image').addEventListener('change', function(e) {
+document.getElementById('event-image').addEventListener('input', async function(e) {
     const url = e.target.value;
     if (!url) return;
 
-    const img = new Image();
-    img.crossOrigin = "Anonymous"; // Required to prevent CORS Canvas taint
-    img.src = url;
+    const themeInput = document.getElementById('event-theme');
 
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        try {
-            ctx.drawImage(img, 0, 0, img.width, img.height);
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            
-            let r = 0, g = 0, b = 0, count = 0;
-            
-            // Sample every 4th pixel to speed up processing
-            for (let i = 0; i < imgData.length; i += 16) {
-                const pr = imgData[i], pg = imgData[i+1], pb = imgData[i+2], pa = imgData[i+3];
+    // Engine to extract pixels and calculate average RGB
+    const extractColor = (imgSrc) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous"; // Required for canvas access
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
                 
-                // Skip transparent pixels
-                if (pa < 255) continue;
-                // Skip too dark (blacks/shadows)
-                if (pr < 30 && pg < 30 && pb < 30) continue;
-                // Skip too bright (whites/glare)
-                if (pr > 230 && pg > 230 && pb > 230) continue;
+                try {
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    
+                    let r = 0, g = 0, b = 0, count = 0;
+                    
+                    for (let i = 0; i < imgData.length; i += 16) {
+                        if (imgData[i+3] < 255) continue; // Skip transparent
+                        if (imgData[i] < 30 && imgData[i+1] < 30 && imgData[i+2] < 30) continue; // Skip pure blacks
+                        if (imgData[i] > 230 && imgData[i+1] > 230 && imgData[i+2] > 230) continue; // Skip pure whites
 
-                r += pr; g += pg; b += pb; count++;
-            }
+                        r += imgData[i]; g += imgData[i+1]; b += imgData[i+2]; count++;
+                    }
 
-            if (count > 0) {
-                r = Math.floor(r / count);
-                g = Math.floor(g / count);
-                b = Math.floor(b / count);
-                
-                // Convert RGB to HEX
-                const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
-                document.getElementById('event-theme').value = hex;
-            }
-        } catch (err) {
-            console.warn("Smart Theme Extractor blocked by CORS. Using manual picker.");
-        }
+                    if (count > 0) {
+                        r = Math.floor(r / count);
+                        g = Math.floor(g / count);
+                        b = Math.floor(b / count);
+                        const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
+                        resolve(hex);
+                    } else {
+                        reject("No vibrant colors found");
+                    }
+                } catch (err) {
+                    reject("Canvas tainted by CORS");
+                }
+            };
+            img.onerror = () => reject("Image failed to load");
+            img.src = imgSrc;
+        });
     };
+
+    try {
+        // Step 1: Try direct extraction first (Fastest)
+        const color = await extractColor(url);
+        themeInput.value = color;
+    } catch (err1) {
+        console.warn("Direct extraction blocked. Using Proxy Bypass...");
+        try {
+            // Step 2: If the site blocks it (like IGN), route through a public proxy to strip security headers
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+            const color = await extractColor(proxyUrl);
+            themeInput.value = color;
+        } catch (err2) {
+            console.error("Smart Theme Extractor failed. Please pick color manually.");
+        }
+    }
 });
 
 async function loadAnalytics() {
