@@ -238,3 +238,21 @@ body.bg-dark .text-info { color: #38bdf8 !important; }
 
 .booking-action-bar { background-color: var(--surface-light); border: none; border-radius: var(--radius-lg); padding: 24px 35px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
 .qr-code-box { min-width: 108px; min-height: 108px; display: flex; align-items: center; justify-content: center; background-color: white; border-radius: var(--radius-md); }
+/* ==========================================
+   💳 PAYMENT MODAL (DISTRICT THEME)
+   ========================================== */
+#payment-tabs .nav-link { 
+    color: var(--text-muted); 
+    border-radius: var(--radius-sm); 
+    transition: all 0.3s var(--ease-bouncy); 
+    background-color: var(--bg-light);
+}
+#payment-tabs .nav-link.active { 
+    background-color: var(--brand-primary); 
+    color: white; 
+    box-shadow: 0 4px 15px var(--brand-glow); 
+    transform: translateY(-2px);
+}
+.modal-content { border: none; }
+.modal-header .btn-close { box-shadow: none; transition: transform 0.3s ease; }
+.modal-header .btn-close:hover { transform: rotate(90deg); }
