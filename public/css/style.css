@@ -43,6 +43,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 /* Readability fix: Titles stay dark! */
 .text-primary { color: var(--brand-primary) !important; }
 #selected-event-title, #tickets-left { color: var(--text-main) !important; }
+
 .text-success { color: var(--success) !important; }
 .text-warning { color: var(--warning) !important; }
 .text-muted { color: var(--text-muted) !important; }
@@ -158,8 +159,9 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; }
 .legend-selected { background-color: var(--brand-primary); border: 2px solid var(--brand-primary); box-shadow: 0 4px 10px var(--brand-glow); }
 .legend-sold { background-color: #f1f5f9; border: 2px solid transparent; opacity: 0.6; }
 
+
 /* ==========================================
-   🚨 ADMIN DARK MODE (DISTRICT FIXES) 🚨
+   🚨 ADMIN DARK MODE (DISTRICT FIXES + GLITCH REMOVAL) 🚨
    ========================================== */
 body.bg-dark { 
     background-color: var(--bg-dark) !important; 
@@ -168,18 +170,19 @@ body.bg-dark {
 }
 
 /* Fix Analytics Cards Colors */
-body.bg-dark .analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
-body.bg-dark .analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
-body.bg-dark .analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
-body.bg-dark .analytics-card-users { background-color: #f59e0b !important; border: none !important; }
-body.bg-dark .analytics-card-revenue *, body.bg-dark .analytics-card-tickets *, body.bg-dark .analytics-card-events *, body.bg-dark .analytics-card-users * { color: #ffffff !important; }
+.analytics-card-revenue { background-color: #10b981 !important; border: none !important; }
+.analytics-card-tickets { background-color: #3b82f6 !important; border: none !important; }
+.analytics-card-events { background-color: #8b5cf6 !important; border: none !important; }
+.analytics-card-users { background-color: #f59e0b !important; border: none !important; }
+.analytics-card-revenue *, .analytics-card-tickets *, .analytics-card-events *, .analytics-card-users * { color: #ffffff !important; }
 
 /* Admin Cards (Huge Radii + Deep Dark Colors) */
+/* THIS FIXES THE UGLY WHITE BORDERS ON DEPLOYMENT */
 body.bg-dark .card, body.bg-dark #event-form { 
     background-color: var(--surface-dark) !important; 
     border: 1px solid var(--border-dark) !important; 
     box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important; 
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-lg) !important;
 }
 
 /* Admin Form Labels & Inputs */
@@ -188,7 +191,7 @@ body.bg-dark .form-control, body.bg-dark .form-select {
     background-color: var(--surface-darker) !important; 
     border: 2px solid var(--border-dark) !important; 
     color: var(--text-light) !important; 
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-md) !important;
 }
 body.bg-dark .form-control:focus, body.bg-dark .form-select:focus { 
     border-color: var(--brand-primary) !important; 
