@@ -24,7 +24,7 @@ let isLoginMode = true;
 let currentEventId = null;
 let currentEventPrice = 0; 
 let currentEventType = null;
-let currentSelectedDate = null; // NEW: Track currently selected date
+let currentSelectedDate = null; 
 let allEvents = []; 
 
 function hexToRgbA(hex, alpha) {
@@ -44,13 +44,22 @@ function resetGlobalTheme() {
     document.documentElement.style.setProperty('--brand-glow-light', 'rgba(226, 55, 68, 0.15)');
 }
 
-// === NEW DATE UTILS ===
+// === NEW LIVE CLOCK DATE UTILS ===
 function getDatesInRange(startDate, endDate) {
     const dates = [];
     let curr = new Date(startDate);
     curr.setHours(0,0,0,0);
+    
     let end = new Date(endDate);
     end.setHours(0,0,0,0);
+
+    let today = new Date();
+    today.setHours(0,0,0,0);
+
+    // Filter out past dates! If event started yesterday, start calendar from TODAY
+    if (curr < today) {
+        curr = new Date(today);
+    }
     
     while(curr <= end) {
         dates.push(new Date(curr));
@@ -67,7 +76,6 @@ const socket = typeof io !== 'undefined' ? io() : null;
 
 if (socket) {
     socket.on('seatUpdate', async (data) => {
-        // ONLY update UI if the socket event matches the event AND the specific date currently viewed
         if (String(currentEventId) === String(data.eventId) && currentSelectedDate === data.date) {
             await loadEventDataForDate(currentSelectedDate, true); 
         }
@@ -287,32 +295,56 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         seatedView.classList.add('d-none');
         generalView.classList.add('d-none');
         
-        // --- RENDER DATE PILLS ---
+        // --- RENDER DYNAMIC DISTRICT DATE PILLS ---
         const dates = getDatesInRange(eventStart, eventEnd);
         const datesContainer = document.getElementById('date-pills');
         document.getElementById('date-selection-container').classList.remove('d-none');
         
-        datesContainer.innerHTML = dates.map(d => {
-            const dateStr = formatDate(d);
-            const displayStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            return `<button class="btn btn-outline-primary fw-bold px-4 py-2 rounded-pill date-pill" data-date="${dateStr}">${displayStr}</button>`;
-        }).join('');
-
-        // Attach click listeners to new date pills
-        document.querySelectorAll('.date-pill').forEach(pill => {
-            pill.addEventListener('click', async (btnEv) => {
-                document.querySelectorAll('.date-pill').forEach(p => { p.classList.remove('active', 'btn-primary', 'text-white'); p.classList.add('btn-outline-primary'); });
-                btnEv.target.classList.remove('btn-outline-primary');
-                btnEv.target.classList.add('active', 'btn-primary', 'text-white');
+        if (dates.length === 0) {
+            datesContainer.innerHTML = '<p class="text-danger w-100 text-center fw-bold mt-2">No upcoming dates available. Event has ended.</p>';
+        } else {
+            datesContainer.innerHTML = dates.map(d => {
+                const dateStr = formatDate(d);
                 
-                currentSelectedDate = btnEv.target.getAttribute('data-date');
-                await loadEventDataForDate(currentSelectedDate, false);
-            });
-        });
+                let today = new Date(); today.setHours(0,0,0,0);
+                let tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+                
+                let line1 = ""; let line2 = "";
 
-        actionSection.scrollIntoView({ behavior: 'smooth' });
-        // Auto-click the first date pill to load default UI
-        document.querySelector('.date-pill').click();
+                if (d.getTime() === today.getTime()) {
+                    line1 = "Today"; 
+                    line2 = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+                } else if (d.getTime() === tomorrow.getTime()) {
+                    line1 = "Tomorrow"; 
+                    line2 = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+                } else {
+                    line1 = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                    line2 = d.toLocaleDateString('en-US', { weekday: 'short' });
+                }
+
+                // pe-none prevents clicks on the text inside the button
+                return `<button class="district-date-pill" data-date="${dateStr}">
+                            <span class="d-block fw-bold fs-5 mb-1 pe-none">${line1}</span>
+                            <span class="d-block small pe-none">${line2}</span>
+                        </button>`;
+            }).join('');
+
+            // Attach click listeners to new district date pills
+            document.querySelectorAll('.district-date-pill').forEach(pill => {
+                pill.addEventListener('click', async (btnEv) => {
+                    const targetBtn = btnEv.target.closest('.district-date-pill');
+                    document.querySelectorAll('.district-date-pill').forEach(p => p.classList.remove('active'));
+                    targetBtn.classList.add('active');
+                    
+                    currentSelectedDate = targetBtn.getAttribute('data-date');
+                    await loadEventDataForDate(currentSelectedDate, false);
+                });
+            });
+
+            actionSection.scrollIntoView({ behavior: 'smooth' });
+            // Auto-click the first valid date pill to load default UI
+            document.querySelector('.district-date-pill').click();
+        }
     }
 });
 
@@ -327,7 +359,7 @@ async function loadEventDataForDate(date, isSoftUpdate = false) {
         if (currentEventType === 'Seated') {
             generalView.classList.add('d-none');
             seatedView.classList.remove('d-none');
-            if (isSoftUpdate) { await renderSeatsForEvent(currentEventId, date); } // re-rendering full layout to be safe
+            if (isSoftUpdate) { await renderSeatsForEvent(currentEventId, date); } 
             else { document.getElementById('seated-total').innerText = '0'; await renderSeatsForEvent(currentEventId, date); }
         } else {
             seatedView.classList.add('d-none');
@@ -426,7 +458,7 @@ document.getElementById('general-qty').addEventListener('blur', (e) => {
     }
 });
 
-// BOOKING BUTTONS (Now passing selectedDate)
+// BOOKING BUTTONS
 document.getElementById('book-seats-btn').addEventListener('click', async (e) => {
     const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
     if (selectedSeats.length === 0 || !currentSelectedDate) return;
@@ -532,7 +564,7 @@ document.getElementById('my-tickets-container').addEventListener('click', async 
     if (e.target.classList.contains('cancel-ticket-btn')) {
         const eventId = e.target.getAttribute('data-eventid');
         const seatId = e.target.getAttribute('data-seatid');
-        const bookingDate = e.target.getAttribute('data-date'); // Must pass date to free up exactly that day
+        const bookingDate = e.target.getAttribute('data-date'); 
 
         if (!confirm('Are you sure you want to cancel this ticket? It will be removed immediately.')) return;
         e.target.disabled = true; e.target.innerText = "Cancelling...";
