@@ -8,42 +8,48 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=V6">
+    <link rel="stylesheet" href="css/style.css?v=V7">
 </head>
 
 <body class="d-flex flex-column min-vh-100">
 
 <header>
-    <nav class="navbar navbar-expand-lg border-bottom position-relative" style="border-color: #262626 !important;">
-        <div class="container-fluid px-lg-5 d-flex align-items-center justify-content-between">
+    <nav class="navbar navbar-expand-lg border-bottom position-relative py-3" style="border-color: #262626 !important;">
+        <div class="container-fluid px-3 px-lg-5">
             
             <a href="#" id="home-logo" class="navbar-brand text-white fw-bold d-flex align-items-center gap-2" style="z-index: 10;">
                 <div class="bg-danger text-white rounded d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 14px;">🎟️</div>
                 TicketHub
             </a>
 
-            <div class="d-flex align-items-center" style="z-index: 10;">
-                
-                <div id="guest-display" class="d-flex align-items-center gap-3">
-                    <button class="btn text-white fw-bold px-3" id="nav-signin-btn" style="background: transparent;">Sign In</button>
-                    <button class="btn btn-danger fw-bold px-4 rounded-pill" id="nav-signup-btn">Sign Up</button>
-                </div>
-                
-                <div id="user-display" class="d-none align-items-center">
-                    <div class="dropdown">
-                        <a href="#" class="text-white fw-bold text-decoration-none dropdown-toggle d-flex align-items-center gap-1" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 15px; letter-spacing: 0.3px;">
-                            Hello, <span id="username-badge" class="text-danger ms-1"></span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-3" aria-labelledby="userMenuButton" style="border-color: #262626; background-color: #121212; min-width: 210px;">
-                            <li><a class="dropdown-item fw-bold py-2 text-white d-flex align-items-center gap-2" href="#" id="nav-bookings-link"><span class="fs-6">🎟️</span> My Bookings</a></li>
-                            <li><a class="dropdown-item fw-bold py-2 text-white d-flex align-items-center gap-2" href="#" id="profile-link-btn"><span class="fs-6">👤</span> Profile Settings</a></li>
-                            <div id="admin-link-container"></div>
-                            <li><hr class="dropdown-divider border-secondary opacity-25 my-2"></li>
-                            <li><a class="dropdown-item fw-bold py-2 text-danger d-flex align-items-center gap-2" href="#" id="logout-btn"><span class="fs-6">🚪</span> Sign Out</a></li>
-                        </ul>
-                    </div>
-                </div>
+            <button class="navbar-toggler border-0 shadow-none px-0" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNavbar" aria-expanded="false" style="filter: invert(1);">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
+            <div class="collapse navbar-collapse justify-content-end" id="mobileNavbar">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-3 mt-4 mt-lg-0" style="z-index: 10;">
+                    
+                    <div id="guest-display" class="d-flex flex-column flex-lg-row align-items-lg-center gap-3 w-100">
+                        <button class="btn text-white fw-bold px-3 w-100 w-lg-auto text-start text-lg-center" id="nav-signin-btn" style="background: transparent;">Sign In</button>
+                        <button class="btn btn-danger fw-bold px-4 rounded-pill w-100 w-lg-auto" id="nav-signup-btn">Sign Up</button>
+                    </div>
+                    
+                    <div id="user-display" class="d-none flex-column flex-lg-row align-items-lg-center w-100 w-lg-auto">
+                        <div class="dropdown w-100">
+                            <a href="#" class="btn btn-dark border-secondary text-white fw-bold text-decoration-none dropdown-toggle d-flex align-items-center justify-content-between justify-content-lg-center w-100 px-4 py-2 rounded-pill" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span>Hello, <span id="username-badge" class="text-danger ms-1"></span></span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-3 w-100 w-lg-auto" aria-labelledby="userMenuButton">
+                                <li><a class="dropdown-item fw-bold text-white" href="#" id="profile-link-btn"><span class="fs-6 me-2">👤</span> Profile Settings</a></li>
+                                <li><a class="dropdown-item fw-bold text-white" href="#" id="nav-bookings-link"><span class="fs-6 me-2">🎟️</span> My Bookings</a></li>
+                                <div id="admin-link-container"></div>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item fw-bold text-danger" href="#" id="logout-btn"><span class="fs-6 me-2">🚪</span> Sign Out</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </nav>
@@ -80,7 +86,7 @@
         </div>
     </section>
 
-    <section id="booking-section" class="d-none mt-5">
+    <section id="booking-section" class="d-none mt-4 mt-lg-5">
         
         <div class="p-1 mb-4 w-100" style="background-color: #0a0a0a; border: 1px solid #262626; border-radius: 8px;">
             <div class="d-flex align-items-center px-3 py-2">
@@ -89,7 +95,7 @@
             </div>
         </div>
         
-        <div class="d-flex gap-2 flex-wrap mb-5 pb-3 border-bottom border-dark">
+        <div class="d-flex gap-2 flex-wrap mb-4 mb-lg-5 pb-3 border-bottom border-dark">
             <button class="btn btn-danger rounded-pill px-4 fw-bold category-filter-btn" data-cat="All">All Events</button>
             <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark category-filter-btn" data-cat="Movie">Movies</button>
             <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark category-filter-btn" data-cat="Concert">Concerts</button>
@@ -116,12 +122,12 @@
                     <div id="date-pills" class="district-date-container m-0 border-0"></div>
                 </div>
 
-                <div id="seated-view" class="card border-0 p-4 d-none">
+                <div id="seated-view" class="card border-0 p-3 p-lg-4 d-none">
                     <h5 class="fw-bold mb-4">Select Your Seats</h5>
                     
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
                         <p class="text-muted small mb-3 mb-md-0">Click on available seats to select them. You can select up to 10 seats.</p>
-                        <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
                             <div class="d-flex align-items-center gap-2"><div class="bms-seat available m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Available</span></div>
                             <div class="d-flex align-items-center gap-2"><div class="bms-seat selected m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Selected</span></div>
                             <div class="d-flex align-items-center gap-2"><div class="bms-seat booked disabled m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Sold</span></div>
@@ -133,7 +139,9 @@
                         <div class="bms-screen-text">SCREEN / STAGE</div>
                     </div>
 
-                    <div id="seat-map" class="w-100 mb-5 d-flex justify-content-center"></div>
+                    <div class="seat-map-wrapper">
+                        <div id="seat-map" class="w-100 mb-5 d-flex justify-content-center" style="min-width: 650px;"></div>
+                    </div>
                 </div>
 
                 <div id="general-view" class="card border-0 p-4 d-none">
@@ -144,13 +152,13 @@
                     </div>
                     <div class="mb-4">
                         <label class="form-label">Select Quantity</label>
-                        <input type="number" id="general-qty" class="form-control text-center fw-bold w-50" min="1" value="1">
+                        <input type="number" id="general-qty" class="form-control text-center fw-bold w-100 w-md-50" min="1" value="1">
                     </div>
                 </div>
             </div>
             
             <div class="col-lg-4">
-                <div class="order-summary">
+                <div class="order-summary shadow-lg">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="fw-bold m-0">Order Summary</h5>
                     </div>
@@ -209,7 +217,7 @@
         </div>
     </div>
 
-    <section id="tickets-section" class="row justify-content-center d-none mt-5 text-start">
+    <section id="tickets-section" class="row justify-content-center d-none mt-4 mt-lg-5 text-start">
         <div class="col-md-9">
             <h3 class="fw-bold mb-4">Recent Bookings</h3>
             <div id="my-tickets-container" class="d-flex flex-column gap-3"></div>
@@ -221,7 +229,7 @@
             </div>
     </section>
 
-    <section id="profile-section" class="row justify-content-center d-none mt-5 text-start">
+    <section id="profile-section" class="row justify-content-center d-none mt-4 mt-lg-5 text-start">
         <div class="col-md-7">
             <div class="card p-4 border-0">
                 <div class="card-body">
@@ -245,6 +253,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
-<script src="js/app.js?v=V9" defer></script>
+<script src="js/app.js?v=V8" defer></script>
 </body>
 </html>
