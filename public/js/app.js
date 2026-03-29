@@ -197,7 +197,6 @@ safeBind('logout-btn', 'click', async (e) => {
     setupAuthMode(true);
 });
 
-
 document.querySelectorAll('.category-filter-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.category-filter-btn').forEach(b => {
@@ -402,7 +401,6 @@ function updateOrderSummary(reset = false) {
     const container = document.getElementById('summary-seats-container');
     const calcText = document.getElementById('summary-calc-text');
     const subtotalText = document.getElementById('summary-subtotal');
-    // 🚨 REMOVED: feeText reference
     const totalText = document.getElementById('summary-total');
     
     if(!checkoutBtn || !totalText) return; 
@@ -418,7 +416,11 @@ function updateOrderSummary(reset = false) {
     let sub = 0; let count = 0;
 
     if (currentEventType === 'Seated') {
-        const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
+        // 🚨 FIX: Scoped the selector specifically to #seat-map so it doesn't accidentally grab the dummy legend seat
+        const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
+            .map(el => el.getAttribute('data-id'))
+            .filter(Boolean); // Double safety to remove nulls
+            
         count = selectedSeats.length;
         if(container) container.classList.toggle('d-none', count === 0);
         if(seatsList) seatsList.innerHTML = selectedSeats.map(s => `<span class="seat-pill">${s}</span>`).join('');
@@ -434,7 +436,6 @@ function updateOrderSummary(reset = false) {
         checkoutBtn.disabled = count === 0;
     }
 
-    // 🚨 REMOVED: fee calculation logic here
     const finalTotal = sub;
     finalCheckoutTotal = finalTotal; 
 
@@ -527,7 +528,11 @@ safeBind('general-qty', 'blur', (e) => {
 safeBind('sidebar-checkout-btn', 'click', () => {
     if (!currentSelectedDate) return;
     if (currentEventType === 'Seated') {
-        const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
+        // 🚨 FIX: Applied the same scoped selector here to ensure we only grab valid seats during checkout
+        const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
+            .map(el => el.getAttribute('data-id'))
+            .filter(Boolean);
+            
         pendingPaymentData = { type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate };
     } else {
         const qty = parseInt(document.getElementById('general-qty').value);
