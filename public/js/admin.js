@@ -19,17 +19,38 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
 });
 
-// Listen for local file upload changes
+// 🚨 FIXED: Aggressive Image Compression using Canvas API to prevent Database Freezing
 document.getElementById('event-poster-file').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Use FileReader to convert local file to base64 string
     const reader = new FileReader();
     reader.onload = function(event) {
-        const base64String = event.target.result;
-        // Update the hidden 'event-image' input with the base64 string for saving to DB
-        document.getElementById('event-image').value = base64String;
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Cap image dimensions
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            // Maintain aspect ratio while scaling down
+            if (width > height) {
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+            } else {
+                if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Compress to JPEG at 70% quality (Massive database size reduction)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            document.getElementById('event-image').value = compressedBase64;
+        };
+        img.src = event.target.result;
     };
     reader.readAsDataURL(file);
 });
@@ -90,6 +111,14 @@ async function loadEvents() {
             else if(e.ageLimit === 18) ratingBadge = `<span class="badge bg-danger ms-2">A</span>`;
             else if(e.ageLimit === 99) ratingBadge = `<span class="badge bg-dark ms-2">S</span>`;
 
+            let catColor = 'bg-secondary text-white';
+            if (e.category === 'Movie') catColor = 'bg-primary bg-opacity-25 text-primary border border-primary border-opacity-25';
+            else if (e.category === 'Concert') catColor = 'bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25';
+            else if (e.category === 'Sports') catColor = 'bg-success bg-opacity-25 text-success border border-success border-opacity-25';
+            else if (e.category === 'Theater') catColor = 'bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25';
+            
+            let catBadge = e.category ? `<span class="badge ${catColor} ms-3 rounded-pill" style="font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px;">${e.category.toLowerCase()}</span>` : '';
+
             return `
             <div class="admin-event-row rounded mb-2">
                 
@@ -97,7 +126,7 @@ async function loadEvents() {
                     ${imgHtml}
                     <div class="ms-3">
                         <div class="d-flex align-items-center gap-2 mb-1">
-                            <h6 class="fw-bold mb-0 text-white" style="font-size: 15px;">${e.title} ${ratingBadge}</h6>
+                            <h6 class="fw-bold mb-0 text-white" style="font-size: 15px;">${e.title} ${ratingBadge} ${catBadge}</h6>
                             <span class="badge ${badgeClass} rounded-pill" style="font-size: 10px; padding: 4px 8px; letter-spacing: 0.5px;">${e.eventType}</span>
                         </div>
                         <div class="text-muted mb-1" style="font-size: 13px;">${e.location}</div>
@@ -179,6 +208,7 @@ eventForm.addEventListener('submit', async (e) => {
         title: document.getElementById('event-title').value,
         ageLimit: parseInt(document.getElementById('event-age').value), 
         eventType: document.getElementById('event-type').value,
+        category: document.getElementById('event-category').value, 
         capacity: parseInt(document.getElementById('event-capacity').value),
         price: Number(document.getElementById('event-price').value),
         startDate: startInput ? new Date(startInput).toISOString() : null,
@@ -232,14 +262,13 @@ window.editEvent = function(eventData) {
     document.getElementById('event-title').value = eventData.title;
     document.getElementById('event-age').value = eventData.ageLimit || 0;
     document.getElementById('event-type').value = eventData.eventType;
+    document.getElementById('event-category').value = eventData.category || 'Movie'; 
     document.getElementById('event-capacity').value = eventData.capacity;
     document.getElementById('event-price').value = eventData.price || 0;
     document.getElementById('event-location').value = eventData.location;
     document.getElementById('event-description').value = eventData.description || '';
     
-    // Fill the hidden text field with the URL/base64
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
-    // Clear the file upload input for security/UX
     document.getElementById('event-poster-file').value = ''; 
 
     document.getElementById('event-start').value = formatForDateTimeLocal(eventData.startDate);
@@ -266,9 +295,9 @@ window.resetEventForm = function() {
     eventForm.reset();
     eventIdInput.value = '';
     
-    // Manually clear it here to prevent the image from carrying over
     document.getElementById('event-image').value = ''; 
     document.getElementById('event-poster-file').value = ''; 
+    document.getElementById('event-category').value = 'Movie'; 
     
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
