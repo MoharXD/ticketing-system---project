@@ -19,7 +19,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
 });
 
-// 🚨 FIXED: Aggressive Image Compression using Canvas API to prevent Database Freezing
 document.getElementById('event-poster-file').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -29,12 +28,11 @@ document.getElementById('event-poster-file').addEventListener('change', function
         const img = new Image();
         img.onload = function() {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; // Cap image dimensions
+            const MAX_WIDTH = 800; 
             const MAX_HEIGHT = 800;
             let width = img.width;
             let height = img.height;
 
-            // Maintain aspect ratio while scaling down
             if (width > height) {
                 if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
             } else {
@@ -46,7 +44,6 @@ document.getElementById('event-poster-file').addEventListener('change', function
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Compress to JPEG at 70% quality (Massive database size reduction)
             const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
             document.getElementById('event-image').value = compressedBase64;
         };
@@ -117,7 +114,7 @@ async function loadEvents() {
             else if (e.category === 'Sports') catColor = 'bg-success bg-opacity-25 text-success border border-success border-opacity-25';
             else if (e.category === 'Theater') catColor = 'bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25';
             
-            let catBadge = e.category ? `<span class="badge ${catColor} ms-3 rounded-pill" style="font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px;">${e.category.toLowerCase()}</span>` : '';
+            let catBadge = e.category ? `<span class="badge ${catColor} ms-3 rounded-pill" style="font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px;">${e.category}</span>` : '';
 
             return `
             <div class="admin-event-row rounded mb-2">
@@ -204,6 +201,7 @@ eventForm.addEventListener('submit', async (e) => {
     const startInput = document.getElementById('event-start').value;
     const endInput = document.getElementById('event-end').value;
 
+    // 🚨 FIXED: The Payload officially includes `category` here
     const payload = {
         title: document.getElementById('event-title').value,
         ageLimit: parseInt(document.getElementById('event-age').value), 
