@@ -1,276 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TicketHub | Book Events</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=V4">
 </head>
 
 <body class="d-flex flex-column min-vh-100">
 
-    <header>
-        <nav class="navbar navbar-expand-lg border-bottom" style="border-color: #262626 !important;">
-            <div class="container-fluid px-lg-5 d-flex align-items-center">
+<header>
+    <nav class="navbar navbar-expand-lg border-bottom position-relative" style="border-color: #262626 !important;">
+        <div class="container-fluid px-lg-5 d-flex align-items-center justify-content-between">
+            
+            <a href="#" id="home-logo" class="navbar-brand text-white fw-bold d-flex align-items-center gap-2" style="z-index: 10;">
+                <div class="bg-danger text-white rounded d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 14px;">🎟️</div>
+                TicketHub
+            </a>
+            
+            <div class="position-absolute start-50 translate-middle-x d-none d-lg-flex gap-5" style="z-index: 5;">
+                <a href="#" class="nav-link-custom" id="nav-events-link">Events</a>
+                <a href="#" class="nav-link-custom d-none" id="nav-bookings-link">My Bookings</a>
+                <a href="admin.html" class="nav-link-custom d-none" id="nav-admin-link">Admin</a>
+            </div>
 
-                <a href="#" id="home-logo" class="navbar-brand text-white fw-bold d-flex align-items-center gap-2">
-                    <div class="bg-danger text-white rounded d-flex align-items-center justify-content-center"
-                        style="width: 28px; height: 28px; font-size: 14px;">🎟️</div>
-                    TicketHub
-                </a>
-
-                <div class="mx-auto d-none d-lg-flex gap-5">
-                    <a href="#" class="nav-link-custom" id="nav-events-link">Events</a>
-                    <a href="#" class="nav-link-custom d-none" id="nav-bookings-link">My Bookings</a>
-                    <a href="admin.html" class="nav-link-custom d-none" id="nav-admin-link">Admin</a>
-                </div>
-
+            <div class="d-flex align-items-center" style="z-index: 10;">
                 <div id="guest-display" class="d-flex align-items-center gap-3">
-                    <button class="btn text-white fw-bold px-3" id="nav-signin-btn"
-                        style="background: transparent;">Sign In</button>
+                    <button class="btn text-white fw-bold px-3" id="nav-signin-btn" style="background: transparent;">Sign In</button>
                     <button class="btn btn-danger fw-bold px-4 rounded-pill" id="nav-signup-btn">Sign Up</button>
                 </div>
-
+                
                 <div id="user-display" class="d-flex align-items-center gap-3 d-none">
-                    <div class="text-white small fw-bold d-none d-md-block">Hello, <span id="username-badge"
-                            class="text-danger"></span></div>
+                    <div class="text-white small fw-bold d-none d-md-block">Hello, <span id="username-badge" class="text-danger"></span></div>
                     <button id="profile-link-btn" class="btn btn-dark btn-sm rounded-pill px-3">Profile</button>
-                    <button id="logout-btn"
-                        class="btn btn-outline-secondary btn-sm rounded-pill px-3 text-white border-secondary">Sign
-                        Out</button>
-                </div>
-            </div>
-        </nav>
-    </header>
-
-    <main class="container pb-5 flex-grow-1">
-
-        <section id="initial-loader" class="text-center mt-5 pt-5">
-            <div class="spinner-border text-danger mb-4" style="width: 3rem; height: 3rem; border-width: 0.25rem;"
-                role="status"></div>
-            <h5 class="text-muted fw-bold">Connecting securely...</h5>
-        </section>
-
-        <section id="auth-section" class="row justify-content-center mt-5 d-none">
-            <div class="col-md-5">
-                <div class="card p-4">
-                    <div class="card-body">
-                        <h3 class="text-center mb-4 fw-bold text-white" id="auth-title">Sign In</h3>
-                        <form id="auth-form">
-                            <div class="mb-3">
-                                <label class="form-label">Username</label>
-                                <input type="text" id="username" class="form-control" required>
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label">Password</label>
-                                <input type="password" id="password" class="form-control" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100 py-2 fs-6" id="auth-submit-btn">Sign
-                                In</button>
-                        </form>
-                        <div class="text-center mt-4">
-                            <a href="admin-login.html" class="text-secondary text-decoration-none small fw-bold">Admin
-                                Portal Access</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="booking-section" class="d-none mt-5">
-            <div class="p-1 mb-4 w-100"
-                style="background-color: #0a0a0a; border: 1px solid #262626; border-radius: 8px;">
-                <div class="d-flex align-items-center px-3 py-2">
-                    <span class="text-muted me-3">🔍</span>
-                    <input type="text" id="event-search-bar"
-                        class="w-100 text-white bg-transparent border-0 shadow-none"
-                        placeholder="Search events, venues, or cities..." style="outline: none;">
+                    <button id="logout-btn" class="btn btn-outline-secondary btn-sm rounded-pill px-3 text-white border-secondary">Sign Out</button>
                 </div>
             </div>
 
-            <div class="d-flex gap-2 flex-wrap mb-5 pb-3 border-bottom border-dark">
-                <button class="btn btn-danger rounded-pill px-4 fw-bold">All Events</button>
-                <button
-                    class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Movies</button>
-                <button
-                    class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Concerts</button>
-                <button
-                    class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Sports</button>
-                <button
-                    class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Theater</button>
-            </div>
+        </div>
+    </nav>
+</header>
 
-            <div id="events-container" class="row mb-5 text-start g-4"></div>
-        </section>
+<main class="container pb-5 flex-grow-1">
+    
+    <section id="initial-loader" class="text-center mt-5 pt-5">
+        <div class="spinner-border text-danger mb-4" style="width: 3rem; height: 3rem; border-width: 0.25rem;" role="status"></div>
+        <h5 class="text-muted fw-bold">Connecting securely...</h5>
+    </section>
 
-        <article id="action-section" class="d-none mt-4">
-            <button id="back-to-events-btn" class="btn btn-link text-muted text-decoration-none mb-4 p-0 fw-bold">← Back
-                to Events</button>
-
-            <div class="row g-4">
-                <div class="col-lg-8">
-
-                    <div class="card border-0 p-4 mb-4">
-                        <h2 id="selected-event-title" class="fw-bold mb-3"></h2>
-                        <div class="d-flex gap-4 flex-wrap mt-2" id="selected-event-details-bar"></div>
-                    </div>
-
-                    <div id="date-selection-container" class="card border-0 p-4 mb-4 d-none w-100">
-                        <h6 class="fw-bold text-muted text-uppercase mb-3"
-                            style="font-size: 12px; letter-spacing: 1px;">Select Date</h6>
-                        <div id="date-pills" class="district-date-container m-0 border-0"></div>
-                    </div>
-
-                    <div id="seated-view" class="card border-0 p-4 d-none">
-                        <h5 class="fw-bold mb-4">Select Your Seats</h5>
-                        <p class="text-muted small mb-4">Click on available seats to select them. You can select up to
-                            10 seats.</p>
-
-                        <div class="bms-screen-container">
-                            <div class="bms-screen"></div>
-                            <div class="bms-screen-text">SCREEN / STAGE</div>
-                        </div>
-
-                        <div id="seat-map" class="w-100 mb-5 d-flex justify-content-center"></div>
-                    </div>
-
-                    <div id="general-view" class="card border-0 p-4 d-none">
-                        <h5 class="fw-bold mb-4">General Admission</h5>
-                        <div class="d-flex justify-content-between mb-4 pb-3 border-bottom border-secondary">
-                            <span class="text-muted fw-bold">Currently Available:</span>
-                            <span id="tickets-left" class="fw-bold text-success fs-5">0</span>
+    <section id="auth-section" class="row justify-content-center mt-5 d-none">
+        <div class="col-md-5">
+            <div class="card p-4">
+                <div class="card-body">
+                    <h3 class="text-center mb-4 fw-bold text-white" id="auth-title">Sign In</h3>
+                    <form id="auth-form">
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" id="username" class="form-control" required>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label">Select Quantity</label>
-                            <input type="number" id="general-qty" class="form-control text-center fw-bold w-50" min="1"
-                                value="1">
+                            <label class="form-label">Password</label>
+                            <input type="password" id="password" class="form-control" required>
                         </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-4">
-                    <div class="order-summary">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="fw-bold m-0">Order Summary</h5>
-                        </div>
-
-                        <div id="summary-seats-container" class="mb-4 d-none">
-                            <label class="text-muted" style="font-size: 13px;">Selected Seats</label>
-                            <div id="summary-seats-list" class="d-flex flex-wrap gap-2 mt-2"></div>
-                        </div>
-
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted small" id="summary-calc-text">Tickets (0)</span>
-                            <span class="fw-bold small">₹<span id="summary-subtotal">0</span></span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-4">
-                            <span class="text-muted small">Convenience Fee (2%)</span>
-                            <span class="fw-bold small text-muted">₹<span id="summary-fee">0</span></span>
-                        </div>
-
-                        <hr class="border-secondary my-3" style="opacity: 0.5;">
-
-                        <div class="d-flex justify-content-between mb-4 align-items-center">
-                            <span class="fs-5 fw-bold">Total</span>
-                            <span class="fs-4 fw-bold text-danger">₹<span id="summary-total">0</span></span>
-                        </div>
-
-                        <button id="sidebar-checkout-btn" class="btn btn-primary w-100 py-3 fw-bold fs-6"
-                            disabled>Proceed to Checkout</button>
-                        <p class="text-center text-muted mt-3 mb-0" style="font-size: 11px;">Seats will be held for 10
-                            minutes after checkout</p>
-                    </div>
-                </div>
-            </div>
-        </article>
-
-        <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content shadow-lg">
-                    <div class="modal-header border-bottom border-secondary pb-3">
-                        <h5 class="modal-title fw-bold text-white">Secure Checkout</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body p-4 text-start">
-                        <div class="mb-4 text-center">
-                            <h2 class="fw-bold text-white mb-0">₹<span id="payment-amount-display">0</span></h2>
-                            <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Amount
-                                Due</small>
-                        </div>
-                        <ul class="nav nav-pills nav-justified mb-4" id="payment-tabs" role="tablist">
-                            <li class="nav-item"><button class="nav-link active fw-bold py-2 btn-dark"
-                                    data-bs-toggle="pill" data-bs-target="#card-payment">💳 Card</button></li>
-                            <li class="nav-item"><button class="nav-link fw-bold py-2 btn-dark mx-2"
-                                    data-bs-toggle="pill" data-bs-target="#upi-payment">📱 UPI</button></li>
-                        </ul>
-                        <div class="tab-content" id="payment-tabContent">
-                            <div class="tab-pane fade show active" id="card-payment">
-                                <div class="mb-3"><label class="form-label small">Card Number</label><input type="text"
-                                        class="form-control" placeholder="0000 1111 2222 3333"></div>
-                            </div>
-                            <div class="tab-pane fade" id="upi-payment">
-                                <div class="mb-3 text-center py-3"><label class="form-label small">Enter UPI
-                                        ID</label><input type="text" class="form-control text-center fw-bold"
-                                        placeholder="username@bank"></div>
-                            </div>
-                        </div>
-                        <button type="button" id="confirm-payment-btn"
-                            class="btn btn-primary w-100 fw-bold py-3 mt-2">Pay Securely Now</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fs-6" id="auth-submit-btn">Sign In</button>
+                    </form>
+                    <div class="text-center mt-4">
+                        <a href="admin-login.html" class="text-secondary text-decoration-none small fw-bold">Admin Portal Access</a>
                     </div>
                 </div>
             </div>
         </div>
+    </section>
 
-        <section id="tickets-section" class="row justify-content-center d-none mt-5 text-start">
-            <div class="col-md-9">
-                <h2 class="fw-bold mb-1">My Bookings</h2>
-                <p class="text-muted mb-4">View and manage your ticket bookings</p>
-                <div id="my-tickets-container" class="d-flex flex-column gap-3"></div>
+    <section id="booking-section" class="d-none mt-5">
+        
+        <div class="p-1 mb-4 w-100" style="background-color: #0a0a0a; border: 1px solid #262626; border-radius: 8px;">
+            <div class="d-flex align-items-center px-3 py-2">
+                <span class="text-muted me-3">🔍</span>
+                <input type="text" id="event-search-bar" class="w-100 text-white bg-transparent border-0 shadow-none" placeholder="Search events, venues, or cities..." style="outline: none;">
             </div>
-        </section>
+        </div>
+        
+        <div class="d-flex gap-2 flex-wrap mb-5 pb-3 border-bottom border-dark">
+            <button class="btn btn-danger rounded-pill px-4 fw-bold">All Events</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Movies</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Concerts</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Sports</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Theater</button>
+        </div>
 
-        <section id="ticket-detail-section" class="row justify-content-center d-none mt-4 text-start">
-            <div class="col-md-9 col-lg-8" id="ticket-detail-container">
-            </div>
-        </section>
+        <div id="events-container" class="row mb-5 text-start g-4"></div>
+    </section>
 
-        <section id="profile-section" class="row justify-content-center d-none mt-5 text-start">
-            <div class="col-md-7">
-                <div class="card p-4 border-0">
-                    <div class="card-body">
-                        <h3 class="mb-4 fw-bold">Profile Settings</h3>
-                        <div id="profile-alert" class="alert d-none text-center fw-bold"></div>
-                        <form id="profile-form">
-                            <div class="mb-3"><label class="form-label">Username</label><input type="text"
-                                    id="profile-username" class="form-control" required></div>
-                            <div class="mb-3"><label class="form-label">Full Name</label><input type="text"
-                                    id="profile-fullname" class="form-control"></div>
-                            <div class="row">
-                                <div class="col-md-8 mb-3"><label class="form-label">Date of Birth</label><input
-                                        type="date" id="profile-dob" class="form-control"></div>
-                                <div class="col-md-4 mb-3"><label class="form-label text-muted">Age</label><input
-                                        type="text" id="profile-age" class="form-control border-0" disabled></div>
-                            </div>
-                            <button type="submit" id="profile-submit-btn"
-                                class="btn btn-primary w-100 fw-bold mt-2 py-2">Save Changes</button>
-                        </form>
+    <article id="action-section" class="d-none mt-4">
+        <button id="back-to-events-btn" class="btn btn-link text-muted text-decoration-none mb-4 p-0 fw-bold">← Back to Events</button>
+        
+        <div class="row g-4">
+            <div class="col-lg-8">
+                
+                <div class="card border-0 p-4 mb-4">
+                    <h2 id="selected-event-title" class="fw-bold mb-3"></h2>
+                    <div class="d-flex gap-4 flex-wrap mt-2" id="selected-event-details-bar"></div>
+                </div>
+                
+                <div id="date-selection-container" class="card border-0 p-4 mb-4 d-none w-100">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size: 12px; letter-spacing: 1px;">Select Date</h6>
+                    <div id="date-pills" class="district-date-container m-0 border-0"></div>
+                </div>
+
+                <div id="seated-view" class="card border-0 p-4 d-none">
+                    <h5 class="fw-bold mb-4">Select Your Seats</h5>
+                    <p class="text-muted small mb-4">Click on available seats to select them. You can select up to 10 seats.</p>
+                    
+                    <div class="bms-screen-container">
+                        <div class="bms-screen"></div>
+                        <div class="bms-screen-text">SCREEN / STAGE</div>
+                    </div>
+
+                    <div id="seat-map" class="w-100 mb-5 d-flex justify-content-center"></div>
+                </div>
+
+                <div id="general-view" class="card border-0 p-4 d-none">
+                    <h5 class="fw-bold mb-4">General Admission</h5>
+                    <div class="d-flex justify-content-between mb-4 pb-3 border-bottom border-secondary">
+                        <span class="text-muted fw-bold">Currently Available:</span>
+                        <span id="tickets-left" class="fw-bold text-success fs-5">0</span>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Select Quantity</label>
+                        <input type="number" id="general-qty" class="form-control text-center fw-bold w-50" min="1" value="1">
                     </div>
                 </div>
             </div>
-        </section>
-    </main>
+            
+            <div class="col-lg-4">
+                <div class="order-summary">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold m-0">Order Summary</h5>
+                    </div>
+                    
+                    <div id="summary-seats-container" class="mb-4 d-none">
+                        <label class="text-muted" style="font-size: 13px;">Selected Seats</label>
+                        <div id="summary-seats-list" class="d-flex flex-wrap gap-2 mt-2"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small" id="summary-calc-text">Tickets (0)</span>
+                        <span class="fw-bold small">₹<span id="summary-subtotal">0</span></span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-4">
+                        <span class="text-muted small">Convenience Fee (2%)</span>
+                        <span class="fw-bold small text-muted">₹<span id="summary-fee">0</span></span>
+                    </div>
+                    
+                    <hr class="border-secondary my-3" style="opacity: 0.5;">
+                    
+                    <div class="d-flex justify-content-between mb-4 align-items-center">
+                        <span class="fs-5 fw-bold">Total</span>
+                        <span class="fs-4 fw-bold text-danger">₹<span id="summary-total">0</span></span>
+                    </div>
+                    
+                    <button id="sidebar-checkout-btn" class="btn btn-primary w-100 py-3 fw-bold fs-6" disabled>Proceed to Checkout</button>
+                    <p class="text-center text-muted mt-3 mb-0" style="font-size: 11px;">Seats will be held for 10 minutes after checkout</p>
+                </div>
+            </div>
+        </div>
+    </article>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
-    <script src="js/app.js?v=V4" defer></script>
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header border-bottom border-secondary pb-3">
+                    <h5 class="modal-title fw-bold text-white">Secure Checkout</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-start">
+                    <div class="mb-4 text-center">
+                        <h2 class="fw-bold text-white mb-0">₹<span id="payment-amount-display">0</span></h2>
+                        <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Amount Due</small>
+                    </div>
+                    <ul class="nav nav-pills nav-justified mb-4" id="payment-tabs" role="tablist">
+                        <li class="nav-item"><button class="nav-link active fw-bold py-2 btn-dark" data-bs-toggle="pill" data-bs-target="#card-payment">💳 Card</button></li>
+                        <li class="nav-item"><button class="nav-link fw-bold py-2 btn-dark mx-2" data-bs-toggle="pill" data-bs-target="#upi-payment">📱 UPI</button></li>
+                    </ul>
+                    <div class="tab-content" id="payment-tabContent">
+                        <div class="tab-pane fade show active" id="card-payment">
+                            <div class="mb-3"><label class="form-label small">Card Number</label><input type="text" class="form-control" placeholder="0000 1111 2222 3333"></div>
+                        </div>
+                        <div class="tab-pane fade" id="upi-payment">
+                            <div class="mb-3 text-center py-3"><label class="form-label small">Enter UPI ID</label><input type="text" class="form-control text-center fw-bold" placeholder="username@bank"></div>
+                        </div>
+                    </div>
+                    <button type="button" id="confirm-payment-btn" class="btn btn-primary w-100 fw-bold py-3 mt-2">Pay Securely Now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="tickets-section" class="row justify-content-center d-none mt-5 text-start">
+        <div class="col-md-9">
+            <h2 class="fw-bold mb-1">My Bookings</h2>
+            <p class="text-muted mb-4">View and manage your ticket bookings</p>
+            <div id="my-tickets-container" class="d-flex flex-column gap-3"></div>
+        </div>
+    </section>
+
+    <section id="ticket-detail-section" class="row justify-content-center d-none mt-4 text-start">
+        <div class="col-md-9 col-lg-8" id="ticket-detail-container">
+            </div>
+    </section>
+
+    <section id="profile-section" class="row justify-content-center d-none mt-5 text-start">
+        <div class="col-md-7">
+            <div class="card p-4 border-0">
+                <div class="card-body">
+                    <h3 class="mb-4 fw-bold">Profile Settings</h3>
+                    <div id="profile-alert" class="alert d-none text-center fw-bold"></div>
+                    <form id="profile-form">
+                        <div class="mb-3"><label class="form-label">Username</label><input type="text" id="profile-username" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label">Full Name</label><input type="text" id="profile-fullname" class="form-control"></div>
+                        <div class="row">
+                            <div class="col-md-8 mb-3"><label class="form-label">Date of Birth</label><input type="date" id="profile-dob" class="form-control"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label text-muted">Age</label><input type="text" id="profile-age" class="form-control border-0" disabled></div>
+                        </div>
+                        <button type="submit" id="profile-submit-btn" class="btn btn-primary w-100 fw-bold mt-2 py-2">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
+<script src="js/app.js?v=V4" defer></script>
 </body>
-
 </html>
