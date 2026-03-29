@@ -402,7 +402,7 @@ function updateOrderSummary(reset = false) {
     const container = document.getElementById('summary-seats-container');
     const calcText = document.getElementById('summary-calc-text');
     const subtotalText = document.getElementById('summary-subtotal');
-    const feeText = document.getElementById('summary-fee');
+    // 🚨 REMOVED: feeText reference
     const totalText = document.getElementById('summary-total');
     
     if(!checkoutBtn || !totalText) return; 
@@ -412,18 +412,13 @@ function updateOrderSummary(reset = false) {
         if(container) container.classList.add('d-none');
         if(calcText) calcText.innerText = `Tickets (0)`; 
         if(subtotalText) subtotalText.innerText = '0'; 
-        if(feeText) feeText.innerText = '0'; 
         totalText.innerText = '0'; checkoutBtn.disabled = true; return;
     }
 
     let sub = 0; let count = 0;
 
     if (currentEventType === 'Seated') {
-        // 🚨 FIX: Now specifically targets #seat-map so it ignores the legend entirely!
-        const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
-            .map(el => el.getAttribute('data-id'))
-            .filter(id => id !== null); // Extra safety check to prevent nulls
-            
+        const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
         count = selectedSeats.length;
         if(container) container.classList.toggle('d-none', count === 0);
         if(seatsList) seatsList.innerHTML = selectedSeats.map(s => `<span class="seat-pill">${s}</span>`).join('');
@@ -439,12 +434,11 @@ function updateOrderSummary(reset = false) {
         checkoutBtn.disabled = count === 0;
     }
 
-    const fee = Math.round(sub * 0.02); 
-    const finalTotal = sub + fee;
+    // 🚨 REMOVED: fee calculation logic here
+    const finalTotal = sub;
     finalCheckoutTotal = finalTotal; 
 
     if(subtotalText) subtotalText.innerText = sub;
-    if(feeText) feeText.innerText = fee;
     totalText.innerText = finalTotal;
 }
 
@@ -533,11 +527,7 @@ safeBind('general-qty', 'blur', (e) => {
 safeBind('sidebar-checkout-btn', 'click', () => {
     if (!currentSelectedDate) return;
     if (currentEventType === 'Seated') {
-        // 🚨 FIX: Re-applied the #seat-map scoped selector here too!
-        const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
-            .map(el => el.getAttribute('data-id'))
-            .filter(id => id !== null);
-            
+        const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
         pendingPaymentData = { type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate };
     } else {
         const qty = parseInt(document.getElementById('general-qty').value);
