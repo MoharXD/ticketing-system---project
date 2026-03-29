@@ -23,13 +23,9 @@ const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB
 
 app.set('trust proxy', 1); 
 
-// 🚀 SPEED FIX 1: Shrink JSON and HTML payloads by ~70% before sending
 app.use(compression()); 
-
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-// 🚀 SPEED FIX 2: Cache static files for 1 day so the browser loads them instantly from memory
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' })); 
 
 app.use(session({
@@ -84,7 +80,6 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/admin/signup', async (req, res) => {
     try {
         const { username, password, secretKey } = req.body;
-        
         const validSecret = process.env.ADMIN_SECRET;
         if (!validSecret) return res.status(500).json({ success: false, message: "Admin configuration missing on server." });
         if (secretKey !== validSecret) return res.status(403).json({ success: false, message: "Invalid Admin Secret Key." });
@@ -254,10 +249,10 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
-                startDate: seat.eventId.startDate, 
+                startDate: seat.eventId.startDate, // 🚨 FIXED: Essential for parsing the Time
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
-                price: seat.eventId.price || 0,    
+                price: seat.eventId.price || 0,    // 🚨 FIXED: Essential for calculating total Amount
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
@@ -309,7 +304,6 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
 app.get('/api/admin/events', requireAdmin, async (req, res) => { res.json(await Event.find().sort({ startDate: -1 })); });
 app.get('/api/admin/users', requireAdmin, async (req, res) => { res.json(await User.find().select('-password')); });
 
-// 🚨 FIXED: The POST route now actively accepts and extracts `category` from the frontend
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
@@ -322,7 +316,6 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
     }
 });
 
-// 🚨 FIXED: Ensure the PUT (Edit) route continues to update dynamically
 app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try { await Event.findByIdAndUpdate(req.params.id, req.body); io.emit('eventUpdate'); io.emit('dashboardUpdate'); res.json({ success: true, message: "Event updated successfully." }); }
     catch (err) { res.status(500).json({ success: false, message: "Error updating event." }); }
@@ -353,5 +346,4 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         res.json({ success: true, message: "User and tickets deleted." });
     } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
-
 server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
