@@ -11,7 +11,6 @@ const eventSchema = new mongoose.Schema({
     capacity: { type: Number, required: true },
     price: { type: Number, required: true, default: 0 }, 
     imageUrl: { type: String, default: '' }, 
-    themeColor: { type: String, default: '#E23744' }, // NEW: Dynamic Theme Color
     ticketsSold: { type: Number, default: 0 }, 
     createdAt: { type: Date, default: Date.now }
 });
