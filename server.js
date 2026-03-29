@@ -85,7 +85,6 @@ app.post('/api/admin/signup', async (req, res) => {
     try {
         const { username, password, secretKey } = req.body;
         
-        // SECURE ADMIN FIX: No hardcoded fallback.
         const validSecret = process.env.ADMIN_SECRET;
         if (!validSecret) return res.status(500).json({ success: false, message: "Admin configuration missing on server." });
         if (secretKey !== validSecret) return res.status(403).json({ success: false, message: "Invalid Admin Secret Key." });
@@ -310,15 +309,20 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
 app.get('/api/admin/events', requireAdmin, async (req, res) => { res.json(await Event.find().sort({ startDate: -1 })); });
 app.get('/api/admin/users', requireAdmin, async (req, res) => { res.json(await User.find().select('-password')); });
 
+// 🚨 FIXED: The POST route now actively accepts and extracts `category` from the frontend
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
         await Event.create({ title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl });
         io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
-    } catch (err) { res.status(500).json({ success: false, message: "Error creating event." }); }
+    } catch (err) { 
+        console.error("Backend Event Creation Error:", err); 
+        res.status(500).json({ success: false, message: "Error creating event." }); 
+    }
 });
 
+// 🚨 FIXED: Ensure the PUT (Edit) route continues to update dynamically
 app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try { await Event.findByIdAndUpdate(req.params.id, req.body); io.emit('eventUpdate'); io.emit('dashboardUpdate'); res.json({ success: true, message: "Event updated successfully." }); }
     catch (err) { res.status(500).json({ success: false, message: "Error updating event." }); }
