@@ -1,6 +1,5 @@
 // ==========================================
 // 🛡️ BULLETPROOF EVENT BINDER
-// Prevents JS from crashing if HTML elements are changed or missing
 // ==========================================
 const safeBind = (id, event, callback) => {
     const el = document.getElementById(id);
@@ -18,7 +17,7 @@ let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
 
-// Pre-fetch events safely in the background
+// Pre-fetch events safely
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
     .catch(() => []);
@@ -113,14 +112,17 @@ const setupAuthMode = (isLogin) => {
     isLoginMode = isLogin;
     const title = document.getElementById('auth-title');
     const btn = document.getElementById('auth-submit-btn');
+    const toggle = document.getElementById('toggle-auth');
     
     if (title) title.innerText = isLogin ? 'Sign In' : 'Create Account';
     if (btn) btn.innerText = isLogin ? 'Sign In' : 'Sign Up';
+    if (toggle) toggle.innerText = isLogin ? 'Need an account? Sign up.' : 'Already have an account? Sign in.';
     switchView('auth-section');
 };
 
 safeBind('nav-signin-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(true); });
 safeBind('nav-signup-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(false); });
+safeBind('toggle-auth', 'click', (e) => { e.preventDefault(); setupAuthMode(!isLoginMode); });
 
 // ==========================================
 // 🔑 AUTHENTICATION
@@ -165,15 +167,17 @@ function showBookingScreen(username, isAdmin = false) {
     
     document.getElementById('nav-bookings-link')?.classList.remove('d-none');
 
-    const userDisplay = document.getElementById('user-display');
-    if (isAdmin && userDisplay && !document.getElementById('nav-admin-link-injected')) {
-        const adminLink = document.createElement('a'); 
-        adminLink.id = 'nav-admin-link-injected';
-        adminLink.href = 'admin.html'; 
-        adminLink.className = 'text-warning text-decoration-none fw-bold small me-3';
-        adminLink.innerText = 'Admin Panel'; 
-        userDisplay.insertBefore(adminLink, document.getElementById('profile-link-btn'));
+    // 🚨 FIX: Correctly place the Admin Link in the center Navbar, NOT injected awkwardly
+    const adminLink = document.getElementById('nav-admin-link');
+    if (isAdmin && adminLink) {
+        adminLink.classList.remove('d-none');
+    } else if (adminLink) {
+        adminLink.classList.add('d-none');
     }
+    
+    // Cleanup any old bugs from previous cache
+    document.getElementById('nav-admin-link-injected')?.remove();
+
     renderEvents(); 
 }
 
@@ -183,7 +187,7 @@ safeBind('logout-btn', 'click', async () => {
     document.getElementById('guest-display')?.classList.remove('d-none');
     document.getElementById('user-display')?.classList.add('d-none');
     document.getElementById('nav-bookings-link')?.classList.add('d-none');
-    document.getElementById('nav-admin-link-injected')?.remove();
+    document.getElementById('nav-admin-link')?.classList.add('d-none');
     
     const u = document.getElementById('username'); if(u) u.value = '';
     const p = document.getElementById('password'); if(p) p.value = '';
@@ -568,8 +572,12 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             return acc;
         }, {});
 
+        // 🚨 FIX: Re-integrated the QR Code Box into the new UI layout
         container.innerHTML = Object.values(grouped).map(g => {
             const icon = g.type === 'Seated' ? '💺' : '🎫';
+            // Create a safe, unique ID for the QR code container
+            g.qrId = `qr-${g.ids[0].seatId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
+            
             return `
             <div class="card bg-dark border-secondary mb-3">
                 <div class="card-body d-flex align-items-center justify-content-between p-4">
@@ -581,13 +589,27 @@ safeBind('nav-bookings-link', 'click', async (e) => {
                             <div class="text-muted mt-1" style="font-size:11px;">${g.seats.join(', ')}</div>
                         </div>
                     </div>
-                    <div class="d-flex flex-column align-items-end gap-2">
-                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2">CONFIRMED</span>
-                        <button class="btn btn-link text-danger p-0 small fw-bold text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel</button>
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="qr-code-box bg-white p-2 rounded shadow-sm" id="${g.qrId}"></div>
+                        <div class="d-flex flex-column align-items-end gap-2">
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2" style="font-size: 10px; font-weight: 800;">CONFIRMED</span>
+                            <button class="btn btn-link text-danger p-0 small fw-bold text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel</button>
+                        </div>
                     </div>
                 </div>
             </div>`
         }).join('');
+
+        // 🚨 FIX: Restore the QR Code generation loop
+        Object.values(grouped).forEach(g => {
+            const qrContainer = document.getElementById(g.qrId);
+            if (qrContainer && typeof QRCode !== 'undefined') {
+                qrContainer.innerHTML = ''; // Clear just in case
+                const qrDataString = `TicketHub\nEvent: ${g.eventTitle}\nDate: ${new Date(g.date).toLocaleDateString()}\nSeats: ${g.seats.join(', ')}`;
+                new QRCode(qrContainer, { text: qrDataString, width: 86, height: 86, colorDark : "#0a0a0a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+            }
+        });
+
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
@@ -671,7 +693,6 @@ safeBind('profile-dob', 'change', (e) => {
         
         const data = await res.json();
         
-        // 🚨 FIX: Force absolutely hide the loader so it can never get stuck!
         if (initLoader) initLoader.style.display = 'none';
         
         if (data.loggedIn) showBookingScreen(data.username, data.isAdmin);
