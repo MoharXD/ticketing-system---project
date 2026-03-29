@@ -37,9 +37,7 @@
                         <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-3" aria-labelledby="userMenuButton" style="border-color: #262626; background-color: #121212; min-width: 210px;">
                             <li><a class="dropdown-item fw-bold py-2 text-white d-flex align-items-center gap-2" href="#" id="nav-bookings-link"><span class="fs-6">🎟️</span> My Bookings</a></li>
                             <li><a class="dropdown-item fw-bold py-2 text-white d-flex align-items-center gap-2" href="#" id="profile-link-btn"><span class="fs-6">👤</span> Profile Settings</a></li>
-                            
                             <div id="admin-link-container"></div>
-                            
                             <li><hr class="dropdown-divider border-secondary opacity-25 my-2"></li>
                             <li><a class="dropdown-item fw-bold py-2 text-danger d-flex align-items-center gap-2" href="#" id="logout-btn"><span class="fs-6">🚪</span> Sign Out</a></li>
                         </ul>
@@ -92,11 +90,11 @@
         </div>
         
         <div class="d-flex gap-2 flex-wrap mb-5 pb-3 border-bottom border-dark">
-            <button class="btn btn-danger rounded-pill px-4 fw-bold">All Events</button>
-            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Movies</button>
-            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Concerts</button>
-            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Sports</button>
-            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Theater</button>
+            <button class="btn btn-danger rounded-pill px-4 fw-bold category-filter-btn" data-cat="All">All Events</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark category-filter-btn" data-cat="Movie">Movies</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark category-filter-btn" data-cat="Concert">Concerts</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark category-filter-btn" data-cat="Sports">Sports</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark category-filter-btn" data-cat="Theater">Theater</button>
         </div>
 
         <div id="events-container" class="row mb-5 text-start g-4"></div>
@@ -209,8 +207,7 @@
 
     <section id="tickets-section" class="row justify-content-center d-none mt-5 text-start">
         <div class="col-md-9">
-            <h2 class="fw-bold mb-1">My Bookings</h2>
-            <p class="text-muted mb-4">View and manage your ticket bookings</p>
+            <h3 class="fw-bold mb-4">Recent Bookings</h3>
             <div id="my-tickets-container" class="d-flex flex-column gap-3"></div>
         </div>
     </section>
