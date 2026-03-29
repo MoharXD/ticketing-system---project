@@ -89,14 +89,9 @@
                     <input type="hidden" id="event-id">
                     
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-8">
                             <label class="form-label">Event Title</label>
                             <input type="text" id="event-title" class="form-control" placeholder="e.g. event name" required>
-                        </div>
-                        
-                        <div class="col-md-2">
-                            <label class="form-label text-primary">Card Color Theme</label>
-                            <input type="color" id="event-theme" class="form-control form-control-color w-100" value="#E23744" required>
                         </div>
                         
                         <div class="col-md-4">
@@ -166,14 +161,14 @@
         </section>
 
         <section class="card border-0 mb-5" style="background-color: var(--surface-card);">
-            <div class="card-header fs-5 border-0 pt-4 pb-3">👥 User Management</div>
-            <div class="card-body p-4 table-responsive">
+            <div class="card-header fs-5 border-0 pt-4 pb-3 px-0 text-white fw-bold">👥 User Management</div>
+            <div class="card-body p-0 table-responsive">
                 <table class="table table-dark table-hover align-middle">
                     <thead>
                         <tr>
-                            <th>Username</th>
+                            <th class="ps-4">Username</th>
                             <th>Role Status</th>
-                            <th class="text-end">Actions</th>
+                            <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="user-table-body"></tbody>
