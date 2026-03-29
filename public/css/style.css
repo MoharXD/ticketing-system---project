@@ -29,7 +29,6 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* 🚨 FIX: Forced text color globally and on all headers */
 body { font-family: var(--font-family); background-color: var(--bg-main); color: var(--text-main) !important; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--text-main) !important; }
 
@@ -62,8 +61,15 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
 .form-control:focus, .form-select:focus { background-color: var(--surface-card); border-color: var(--brand-primary); box-shadow: 0 0 0 2px var(--brand-glow); color: white; outline: none; }
 .form-control::placeholder { color: #52525b; }
 
+/* 🚨 FIX: Forces disabled inputs (like Age) to match the dark theme and remain readable */
+.form-control:disabled, .form-select:disabled { 
+    background-color: var(--surface-hover) !important; 
+    color: var(--text-muted) !important; 
+    border-color: var(--border-color) !important;
+    opacity: 1; 
+}
+
 /* EVENT CARDS */
-/* 🚨 FIX: Override Bootstrap's native dark text color inside cards */
 .card { background-color: var(--surface-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); color: var(--text-main) !important; }
 .event-card { cursor: pointer; transition: transform 0.3s ease, border-color 0.3s ease; }
 .event-card:hover { transform: translateY(-4px); border-color: #52525b; }
