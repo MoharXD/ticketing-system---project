@@ -1,6 +1,6 @@
 // ==========================================
 // 🛡️ BULLETPROOF EVENT BINDER
-// Prevents JS from crashing if HTML is modified
+// Prevents JS from crashing if HTML elements are changed or missing
 // ==========================================
 const safeBind = (id, event, callback) => {
     const el = document.getElementById(id);
@@ -18,24 +18,28 @@ let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
 
-// Pre-fetch events safely
-let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`).then(res => res.ok ? res.json() : []).catch(() => []);
+// Pre-fetch events safely in the background to eliminate loading screens
+let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
+    .then(res => res.ok ? res.json() : [])
+    .catch(() => []);
 
-// Helpers
+// Date Helpers
 function formatLocalYYYYMMDD(dateObj) {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 }
+
 function getDatesInRange(startDate, endDate) {
     const dates = [];
     let curr = new Date(startDate); curr.setHours(0,0,0,0);
     let end = new Date(endDate); end.setHours(0,0,0,0);
     let today = new Date(); today.setHours(0,0,0,0);
+    
     if (curr < today) curr = new Date(today.getTime());
     while(curr <= end) { dates.push(new Date(curr.getTime())); curr.setDate(curr.getDate() + 1); }
     return dates;
 }
 
-// Socket
+// WebSockets
 const socket = typeof io !== 'undefined' ? io() : null;
 if (socket) {
     socket.on('seatUpdate', async (data) => {
@@ -49,14 +53,12 @@ if (socket) {
 function handlePossibleForceLogout(data) {
     if (data.forceLogout) {
         alert("🚨 Session Terminated: " + data.message);
-        const btn = document.getElementById('logout-btn');
-        if(btn) btn.click();
+        document.getElementById('logout-btn')?.click();
         return true;
     }
     return false;
 }
 
-// Check expirations without crashing
 function checkEventExpirations() {
     const now = new Date();
     allEvents.forEach(e => {
@@ -67,10 +69,13 @@ function checkEventExpirations() {
             if (isExpired && !cardBtn.classList.contains('expired-card')) {
                 cardBtn.classList.add('expired-card');
                 const overlay = cardBtn.querySelector('.book-now-btn');
-                if(overlay) { overlay.innerText = 'Ended'; overlay.classList.replace('btn-danger', 'btn-secondary'); }
+                if(overlay) { 
+                    overlay.innerText = 'Ended'; 
+                    overlay.classList.replace('btn-danger', 'btn-secondary'); 
+                }
                 if (currentEventId === String(e._id)) {
                     alert("⏳ Time's up! This event has officially ended.");
-                    document.getElementById('home-logo')?.click(); 
+                    switchView('booking-section');
                 }
             }
         });
@@ -94,11 +99,9 @@ async function refreshGlobalEvents() {
 
 const switchView = (viewId) => {
     ['auth-section', 'booking-section', 'profile-section', 'tickets-section', 'action-section'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('d-none');
+        document.getElementById(id)?.classList.add('d-none');
     });
-    const target = document.getElementById(viewId);
-    if (target) target.classList.remove('d-none');
+    document.getElementById(viewId)?.classList.remove('d-none');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -110,13 +113,17 @@ const setupAuthMode = (isLogin) => {
     isLoginMode = isLogin;
     const title = document.getElementById('auth-title');
     const btn = document.getElementById('auth-submit-btn');
+    const toggle = document.getElementById('toggle-auth');
+    
     if (title) title.innerText = isLogin ? 'Sign In' : 'Create Account';
     if (btn) btn.innerText = isLogin ? 'Sign In' : 'Sign Up';
+    if (toggle) toggle.innerText = isLogin ? 'Need an account? Sign up.' : 'Already have an account? Sign in.';
     switchView('auth-section');
 };
 
 safeBind('nav-signin-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(true); });
 safeBind('nav-signup-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(false); });
+safeBind('toggle-auth', 'click', (e) => { e.preventDefault(); setupAuthMode(!isLoginMode); });
 
 // ==========================================
 // 🔑 AUTHENTICATION
@@ -144,7 +151,8 @@ safeBind('auth-form', 'submit', async (e) => {
                 passEl.value = '';
             }
         } else {
-            alert(data.message || 'Error occurred');
+            if (data.notFound && isLoginMode) { if (confirm(data.message)) setupAuthMode(false); } 
+            else alert(data.message || 'Error occurred');
         }
     } catch (err) { alert("Server error. Please try again."); }
 });
@@ -152,20 +160,23 @@ safeBind('auth-form', 'submit', async (e) => {
 function showBookingScreen(username, isAdmin = false) {
     switchView('booking-section');
     
-    const guestNav = document.getElementById('guest-display');
-    const userNav = document.getElementById('user-display');
-    const badge = document.getElementById('username-badge');
+    document.getElementById('guest-display')?.classList.add('d-none');
+    document.getElementById('user-display')?.classList.remove('d-none');
     
-    if(guestNav) guestNav.classList.add('d-none');
-    if(userNav) userNav.classList.remove('d-none');
+    const badge = document.getElementById('username-badge');
     if(badge) badge.innerText = username;
     
-    const bookingsLink = document.getElementById('nav-bookings-link');
-    if(bookingsLink) bookingsLink.classList.remove('d-none');
+    document.getElementById('nav-bookings-link')?.classList.remove('d-none');
 
-    const adminLink = document.getElementById('nav-admin-link');
-    if (isAdmin && adminLink) adminLink.classList.remove('d-none');
-
+    const userDisplay = document.getElementById('user-display');
+    if (isAdmin && userDisplay && !document.getElementById('nav-admin-link-injected')) {
+        const adminLink = document.createElement('a'); 
+        adminLink.id = 'nav-admin-link-injected';
+        adminLink.href = 'admin.html'; 
+        adminLink.className = 'text-warning text-decoration-none fw-bold small me-3';
+        adminLink.innerText = 'Admin Panel'; 
+        userDisplay.insertBefore(adminLink, document.getElementById('profile-link-btn'));
+    }
     renderEvents(); 
 }
 
@@ -175,7 +186,7 @@ safeBind('logout-btn', 'click', async () => {
     document.getElementById('guest-display')?.classList.remove('d-none');
     document.getElementById('user-display')?.classList.add('d-none');
     document.getElementById('nav-bookings-link')?.classList.add('d-none');
-    document.getElementById('nav-admin-link')?.classList.add('d-none');
+    document.getElementById('nav-admin-link-injected')?.remove();
     
     const u = document.getElementById('username'); if(u) u.value = '';
     const p = document.getElementById('password'); if(p) p.value = '';
@@ -204,10 +215,13 @@ async function renderEvents() {
     }
 
     if (initialEventsPromise) {
-        allEvents = await initialEventsPromise; initialEventsPromise = null; 
-        checkEventExpirations(); displayEvents(allEvents);
+        allEvents = await initialEventsPromise; 
+        initialEventsPromise = null; 
+        checkEventExpirations(); 
+        displayEvents(allEvents);
     } else {
-        await refreshGlobalEvents(); displayEvents(allEvents);
+        await refreshGlobalEvents(); 
+        displayEvents(allEvents);
     }
 }
 
@@ -285,8 +299,6 @@ safeBind('events-container', 'click', async (e) => {
     }
 
     currentEventId = card.getAttribute('data-id');
-    switchView('action-section');
-    
     const titleEl = document.getElementById('selected-event-title');
     if(titleEl) titleEl.innerText = card.getAttribute('data-title'); 
     
@@ -300,6 +312,7 @@ safeBind('events-container', 'click', async (e) => {
         `;
     }
     
+    switchView('action-section');
     document.getElementById('seated-view')?.classList.add('d-none');
     document.getElementById('general-view')?.classList.add('d-none');
     
@@ -333,13 +346,16 @@ safeBind('events-container', 'click', async (e) => {
                     const targetBtn = btnEv.target.closest('.district-date-pill');
                     document.querySelectorAll('.district-date-pill').forEach(p => p.classList.remove('active'));
                     targetBtn.classList.add('active');
+                    
                     currentSelectedDate = targetBtn.getAttribute('data-date');
                     updateOrderSummary(true); 
                     await loadEventDataForDate(currentSelectedDate, false);
                     targetBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                 });
             });
-            document.querySelector('.district-date-pill').click();
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.querySelector('.district-date-pill')?.click();
         }
     }
 });
@@ -357,7 +373,6 @@ function updateOrderSummary(reset = false) {
     const feeText = document.getElementById('summary-fee');
     const totalText = document.getElementById('summary-total');
     
-    // Safety check
     if(!checkoutBtn || !totalText) return; 
 
     if (reset) {
@@ -408,7 +423,8 @@ async function loadEventDataForDate(date, isSoftUpdate = false) {
         if (currentEventType === 'Seated') {
             if(gView) gView.classList.add('d-none'); 
             if(sView) sView.classList.remove('d-none');
-            await renderSeatsForEvent(currentEventId, date);
+            if(isSoftUpdate) { await renderSeatsForEvent(currentEventId, date); }
+            else { await renderSeatsForEvent(currentEventId, date); }
         } else {
             if(sView) sView.classList.add('d-none'); 
             if(gView) gView.classList.remove('d-none');
@@ -493,7 +509,7 @@ safeBind('sidebar-checkout-btn', 'click', () => {
 
     if(!paymentModalInstance) {
         const pModal = document.getElementById('paymentModal');
-        if(pModal) paymentModalInstance = new bootstrap.Modal(pModal);
+        if(pModal && typeof bootstrap !== 'undefined') paymentModalInstance = new bootstrap.Modal(pModal);
     }
     if(paymentModalInstance) paymentModalInstance.show();
 });
@@ -634,11 +650,18 @@ safeBind('profile-form', 'submit', async (e) => {
             const badge = document.getElementById('username-badge'); if(badge) badge.innerText = data.newUsername || newUsername;
             setTimeout(() => { switchView('booking-section'); if(submitBtn){submitBtn.disabled = false; submitBtn.innerText = "Save Changes";} }, 1500);
         } else if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = "Save Changes"; }
-    } catch (err) { if(submitBtn){ submitBtn.disabled = false; submitBtn.innerText = "Save Changes"; } }
+    } catch (err) { if(alertBox) { alertBox.classList.remove('d-none', 'alert-success'); alertBox.classList.add('alert-danger'); alertBox.innerText = "Network error."; } if(submitBtn){ submitBtn.disabled = false; submitBtn.innerText = "Save Changes"; } }
+});
+
+safeBind('profile-dob', 'change', (e) => {
+    const ageInput = document.getElementById('profile-age');
+    if(ageInput && e.target.value) {
+        ageInput.value = Math.abs(new Date(Date.now() - new Date(e.target.value).getTime()).getUTCFullYear() - 1970);
+    }
 });
 
 // ==========================================
-// 🚀 INITIALIZATION (Bulletproofed)
+// 🚀 INITIALIZATION 
 // ==========================================
 (async function initializeApp() {
     const initLoader = document.getElementById('initial-loader');
@@ -646,6 +669,7 @@ safeBind('profile-form', 'submit', async (e) => {
         const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 60000); 
         const res = await fetch(`/api/check-session?t=${new Date().getTime()}`, { signal: controller.signal });
         clearTimeout(timeoutId);
+        
         if (!res.ok) throw new Error("Server error.");
         
         const data = await res.json();
