@@ -18,12 +18,10 @@ let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
 
-// Pre-fetch events safely in the background
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
     .catch(() => []);
 
-// Date Helpers
 function formatLocalYYYYMMDD(dateObj) {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 }
@@ -39,7 +37,6 @@ function getDatesInRange(startDate, endDate) {
     return dates;
 }
 
-// WebSockets
 const socket = typeof io !== 'undefined' ? io() : null;
 if (socket) {
     socket.on('seatUpdate', async (data) => {
@@ -94,10 +91,6 @@ async function refreshGlobalEvents() {
     } catch(err) { console.warn("Live sync failed", err); }
 }
 
-// ==========================================
-// 🧭 NAVIGATION & UI ROUTING
-// ==========================================
-
 const switchView = (viewId) => {
     ['auth-section', 'booking-section', 'profile-section', 'tickets-section', 'action-section', 'ticket-detail-section'].forEach(id => {
         document.getElementById(id)?.classList.add('d-none');
@@ -121,10 +114,6 @@ const setupAuthMode = (isLogin) => {
 
 safeBind('nav-signin-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(true); });
 safeBind('nav-signup-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(false); });
-
-// ==========================================
-// 🔑 AUTHENTICATION
-// ==========================================
 
 safeBind('auth-form', 'submit', async (e) => {
     e.preventDefault();
@@ -208,9 +197,6 @@ safeBind('logout-btn', 'click', async (e) => {
     setupAuthMode(true);
 });
 
-// ==========================================
-// 🎟️ EVENTS & SEARCH/FILTER LOGIC
-// ==========================================
 
 document.querySelectorAll('.category-filter-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -273,6 +259,7 @@ async function renderEvents() {
     }
 }
 
+// 🚨 FIXED: Removed the Absolute Badge overlay and nested everything inside the card body!
 function displayEvents(events) {
     const container = document.getElementById('events-container');
     if(!container) return;
@@ -282,7 +269,6 @@ function displayEvents(events) {
 
     const now = new Date();
     
-    // 🚨 FIXED: The badge has been removed from the image container and cleanly injected inside the card body.
     container.innerHTML = events.map(e => {
         const isExpired = now > new Date(e.endDate);
         const btnState = isExpired ? 'btn-secondary disabled' : 'btn-danger';
@@ -411,10 +397,6 @@ safeBind('events-container', 'click', async (e) => {
     }
 });
 
-// ==========================================
-// 💳 SEATS, SUMMARY & CHECKOUT
-// ==========================================
-
 function updateOrderSummary(reset = false) {
     const checkoutBtn = document.getElementById('sidebar-checkout-btn');
     const seatsList = document.getElementById('summary-seats-list');
@@ -454,7 +436,7 @@ function updateOrderSummary(reset = false) {
         checkoutBtn.disabled = count === 0;
     }
 
-    const fee = Math.round(sub * 0.02); // 2% UI calculation
+    const fee = Math.round(sub * 0.02); 
     const finalTotal = sub + fee;
     finalCheckoutTotal = finalTotal; 
 
