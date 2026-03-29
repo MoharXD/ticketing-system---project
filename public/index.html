@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TicketHub Booking</title>
+    <title>Ticket Booking System</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,27 +14,23 @@
 
 <body class="d-flex flex-column min-vh-100">
 
-<header style="background-color: #09090b; border-bottom: 1px solid #27272a;">
-    <nav class="navbar navbar-dark py-3">
-        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center">
-            
-            <a href="#" id="home-logo" class="navbar-brand text-white text-decoration-none fw-bold d-flex align-items-center m-0 p-0 mb-3 mb-md-0" style="font-size: 1.5rem; font-family: 'Plus Jakarta Sans', sans-serif;">
-                <div style="background-color: #E23744; border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2" ry="2"></rect><path d="M12 11v2"></path><path d="M8 11v2"></path><path d="M16 11v2"></path></svg>
-                </div>
+<header>
+    <nav class="navbar py-3" style="background-color: #09090b !important; border-bottom: 1px solid #27272a; backdrop-filter: none;">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a href="#" id="home-logo" class="text-white text-decoration-none fw-bold d-flex align-items-center gap-2 fs-5">
+                <span style="background-color: var(--brand-primary); padding: 4px 8px; border-radius: 8px; font-size: 1rem;">🎟️</span> 
                 TicketHub
             </a>
             
-            <div id="user-display" class="d-none d-flex flex-wrap align-items-center gap-3 gap-md-4 justify-content-center">
-                <a href="admin.html" id="admin-btn" class="text-warning text-decoration-none fw-bold d-none" style="font-size: 0.95rem;">Dashboard</a>
+            <div id="user-display" class="d-none d-flex align-items-center gap-4">
+                <span class="text-white fw-bold" style="font-size: 0.95rem;">Hello, <span id="username-badge" style="color: var(--brand-primary);"></span></span>
                 
-                <a href="#" id="my-tickets-link" class="text-white text-decoration-none fw-bold" style="font-size: 0.95rem;">My Tickets</a>
-                
-                <span class="text-white fw-bold" style="font-size: 0.95rem;">Hello, <span id="username-badge" style="color: #E23744;"></span></span>
-                
-                <a href="#" id="profile-link" class="btn text-white rounded-pill px-4 py-2 fw-bold" style="background-color: #18181b; border: 1px solid #27272a; font-size: 0.9rem; transition: background 0.2s;">Profile</a>
-                
-                <a href="#" id="logout-btn" class="text-white text-decoration-none fw-bold" style="font-size: 0.95rem; cursor: pointer;">Sign Out</a>
+                <div class="d-flex align-items-center gap-4 ms-2">
+                    <a href="admin.html" id="admin-btn" class="btn btn-warning btn-sm fw-bold d-none text-dark px-3 rounded-pill">Dashboard</a>
+                    <button id="my-tickets-link" class="btn btn-link text-white text-decoration-none fw-bold p-0 border-0" style="font-size: 0.9rem;">Booked Tickets</button>
+                    <button id="profile-link" class="btn btn-outline-secondary btn-sm fw-bold rounded-pill px-4 text-white border-secondary" style="font-size: 0.85rem;">Profile</button>
+                    <button id="logout-btn" class="btn btn-link text-white text-decoration-none fw-bold p-0 border-0" style="font-size: 0.9rem;">Sign Out</button>
+                </div>
             </div>
         </div>
     </nav>
@@ -98,6 +94,7 @@
         <div id="events-container" class="row justify-content-center mb-5 text-start"></div>
 
         <article id="action-section" class="d-none pb-5 mt-5 pt-4 border-top">
+            
             <h2 id="selected-event-title" class="fw-bold mb-4 text-center text-dark"></h2>
             
             <div id="date-selection-container" class="mb-5 d-none w-100">
@@ -203,7 +200,7 @@
 
 <footer class="mt-auto py-3 bg-white border-top">
     <div class="container text-center">
-        <small class="text-muted fw-bold">&copy; 2026 TicketHub. All Rights Reserved.</small>
+        <small class="text-muted fw-bold">&copy; 2026 Ticket Booking System. All Rights Reserved.</small>
     </div>
 </footer>
 
