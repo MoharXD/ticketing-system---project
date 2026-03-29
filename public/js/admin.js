@@ -19,67 +19,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
 });
 
-// ==========================================
-// 🎨 SMART THEME EXTRACTOR & FILE UPLOAD
-// ==========================================
-const hexToRgbA = (hex, alpha) => {
-    let c;
-    if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-        c = hex.substring(1).split('');
-        if (c.length == 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-        c = '0x' + c.join('');
-        return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
-    }
-    return `rgba(226, 55, 68, ${alpha})`; 
-};
-
-// Reusable function to extract dominant color from an image source (URL or Base64)
-const updateThemeColorFromImage = (imgSrc) => {
-    const img = new Image();
-    img.crossOrigin = "Anonymous"; // Crucial to prevent CORS "tainted canvas" security blocks for external URLs
-    img.src = imgSrc;
-
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        try {
-            ctx.drawImage(img, 0, 0, img.width, img.height);
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            
-            let r = 0, g = 0, b = 0, count = 0;
-            
-            // Sample every 4th pixel to speed up processing
-            for (let i = 0; i < imgData.length; i += 16) {
-                const pr = imgData[i], pg = imgData[i+1], pb = imgData[i+2], pa = imgData[i+3];
-                
-                // Skip transparent pixels
-                if (pa < 255) continue;
-                // Skip too dark (blacks/shadows)
-                if (pr < 30 && pg < 30 && pb < 30) continue;
-                // Skip too bright (whites/glare)
-                if (pr > 230 && pg > 230 && pb > 230) continue;
-
-                r += pr; g += pg; b += pb; count++;
-            }
-
-            if (count > 0) {
-                r = Math.floor(r / count);
-                g = Math.floor(g / count);
-                b = Math.floor(b / count);
-                
-                // Convert RGB to HEX
-                const hex = "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
-                document.getElementById('event-theme').value = hex;
-            }
-        } catch (err) {
-            console.warn("Smart Theme Extractor blocked by CORS or tainted canvas security. Using manual picker fallback.");
-        }
-    };
-};
-
 // Listen for local file upload changes
 document.getElementById('event-poster-file').addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -91,9 +30,6 @@ document.getElementById('event-poster-file').addEventListener('change', function
         const base64String = event.target.result;
         // Update the hidden 'event-image' input with the base64 string for saving to DB
         document.getElementById('event-image').value = base64String;
-        
-        // Run theme extractor on the newly loaded base64 data
-        updateThemeColorFromImage(base64String);
     };
     reader.readAsDataURL(file);
 });
@@ -145,7 +81,6 @@ async function loadAnalytics() {
     }
 }
 
-// 🚨 FIXED: Completely rewritten to generate the new layout
 async function loadEvents() {
     try {
         const res = await fetch('/api/admin/events');
@@ -167,16 +102,14 @@ async function loadEvents() {
             const available = Math.max(0, capacity - sold);
             const percent = capacity > 0 ? Math.round((sold / capacity) * 100) : 0;
             
-            // Build the image or fallback icon
             let imgHtml = '';
             if (e.imageUrl) {
-                imgHtml = `<img src="${e.imageUrl}" class="admin-event-img border" style="border-color: ${e.themeColor || '#262626'} !important;">`;
+                imgHtml = `<img src="${e.imageUrl}" class="admin-event-img border" style="border-color: #262626 !important;">`;
             } else {
                 const icon = e.eventType === 'Seated' ? '💺' : '🎫';
-                imgHtml = `<div class="admin-event-img border" style="border-color: ${e.themeColor || '#262626'} !important; background-color: rgba(255,255,255,0.05);">${icon}</div>`;
+                imgHtml = `<div class="admin-event-img border" style="border-color: #262626 !important; background-color: rgba(255,255,255,0.05);">${icon}</div>`;
             }
 
-            // Badge styling
             let badgeClass = e.eventType === 'Seated' ? 'bg-info text-dark' : 'bg-warning text-dark';
             
             let ratingBadge = '';
@@ -251,10 +184,10 @@ async function loadUsers() {
 
         tbody.innerHTML = users.map(u => `
             <tr>
-                <td>${u.username}</td>
+                <td class="ps-4">${u.username}</td>
                 <td>${u.isAdmin ? '<span class="badge bg-warning text-dark">Admin</span>' : '<span class="badge bg-secondary">User</span>'}</td>
-                <td class="text-end">
-                    <button class="btn btn-outline-danger btn-sm" onclick="deleteUser('${u._id}')">Remove</button>
+                <td class="text-end pe-4">
+                    <button class="btn btn-outline-danger btn-sm fw-bold" onclick="deleteUser('${u._id}')">Remove</button>
                 </td>
             </tr>
         `).join('');
@@ -282,8 +215,7 @@ eventForm.addEventListener('submit', async (e) => {
         endDate: endInput ? new Date(endInput).toISOString() : null,
         location: document.getElementById('event-location').value,
         description: document.getElementById('event-description').value,
-        imageUrl: document.getElementById('event-image').value,
-        themeColor: document.getElementById('event-theme').value 
+        imageUrl: document.getElementById('event-image').value
     };
 
     const endpoint = isEditing ? `/api/admin/events/${eventId}` : '/api/admin/events';
@@ -339,8 +271,6 @@ window.editEvent = function(eventData) {
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
     // Clear the file upload input for security/UX
     document.getElementById('event-poster-file').value = ''; 
-    
-    document.getElementById('event-theme').value = eventData.themeColor || '#E23744'; 
 
     document.getElementById('event-start').value = formatForDateTimeLocal(eventData.startDate);
     document.getElementById('event-end').value = formatForDateTimeLocal(eventData.endDate);
@@ -366,13 +296,10 @@ window.resetEventForm = function() {
     eventForm.reset();
     eventIdInput.value = '';
     
-    // 🛠️ BUG FIX: Because the image field is now hidden, the native form.reset() ignores it. 
-    // We must manually clear it here to prevent the image from carrying over to the next event creation.
+    // Manually clear it here to prevent the image from carrying over
     document.getElementById('event-image').value = ''; 
-    
-    // Reset file upload specifically
     document.getElementById('event-poster-file').value = ''; 
-    document.getElementById('event-theme').value = '#E23744';
+    
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
     submitBtn.classList.replace('btn-warning', 'btn-success');
