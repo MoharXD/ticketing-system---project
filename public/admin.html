@@ -70,9 +70,20 @@
                     <input type="hidden" id="event-id">
                     
                     <div class="row g-3">
-                        <div class="col-md-8">
+                        
+                        <div class="col-md-5">
                             <label class="form-label">Event Title</label>
                             <input type="text" id="event-title" class="form-control" placeholder="e.g. event name" required>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label class="form-label text-success">Category</label>
+                            <select id="event-category" class="form-select" required>
+                                <option value="Movie">Movie</option>
+                                <option value="Concert">Concert</option>
+                                <option value="Sports">Sports</option>
+                                <option value="Theater">Theater</option>
+                            </select>
                         </div>
                         
                         <div class="col-md-4">
