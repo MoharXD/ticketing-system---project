@@ -5,7 +5,8 @@ const submitBtn = document.getElementById('event-submit-btn');
 const cancelBtn = document.getElementById('event-cancel-btn');
 
 window.addEventListener('DOMContentLoaded', async () => {
-    const res = await fetch('/api/check-session');
+    // 🚨 FIX: Cache buster appended to ensure fresh session checks
+    const res = await fetch(`/api/check-session?t=${Date.now()}`);
     const data = await res.json();
     
     if (!data.loggedIn || !data.isAdmin) {
@@ -55,7 +56,8 @@ document.getElementById('event-poster-file').addEventListener('change', function
 
 async function loadAnalytics() {
     try {
-        const res = await fetch('/api/admin/analytics');
+        // 🚨 FIX: Cache buster appended to load instantly
+        const res = await fetch(`/api/admin/analytics?t=${Date.now()}`);
         const data = await res.json();
         
         if(data.success) {
@@ -71,7 +73,8 @@ async function loadAnalytics() {
 
 async function loadEvents() {
     try {
-        const res = await fetch('/api/admin/events');
+        // 🚨 FIX: Cache buster appended to fetch new events bypassing disk cache
+        const res = await fetch(`/api/admin/events?t=${Date.now()}`);
         const events = await res.json();
         const container = document.getElementById('event-list-container');
 
@@ -169,7 +172,8 @@ async function loadEvents() {
 
 async function loadUsers() {
     try {
-        const res = await fetch('/api/admin/users');
+        // 🚨 FIX: Cache buster appended to force real-time user refresh
+        const res = await fetch(`/api/admin/users?t=${Date.now()}`);
         const users = await res.json();
         const tbody = document.getElementById('user-table-body');
 
@@ -201,7 +205,6 @@ eventForm.addEventListener('submit', async (e) => {
     const startInput = document.getElementById('event-start').value;
     const endInput = document.getElementById('event-end').value;
 
-    // 🚨 FIXED: The Payload officially includes `category` here
     const payload = {
         title: document.getElementById('event-title').value,
         ageLimit: parseInt(document.getElementById('event-age').value), 

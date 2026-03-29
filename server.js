@@ -26,14 +26,43 @@ app.set('trust proxy', 1);
 app.use(compression()); 
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' })); 
 
+// 🚨 BUG FIX 1: AGGRESSIVE CACHE BUSTING FOR API ROUTES
+// This prevents the browser from serving stale data from disk cache
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+    next();
+});
+
+// 🚨 BUG FIX 2: PREVENT HTML CACHING
+// We cache CSS/JS for speed, but HTML pages must always be fresh
+app.use(express.static(path.join(__dirname, 'public'), { 
+    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+})); 
+
+// 🚨 BUG FIX 3: BULLETPROOF SESSIONS
+// Added 'sameSite: lax' and dynamic 'secure' flags to prevent random logouts on cloud hosts
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({ mongoUrl: DB_URI, collectionName: 'sessions', ttl: 14 * 24 * 60 * 60 }),
-    cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 * 14 } 
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', 
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 14 
+    } 
 }));
 
 mongoose.connect(DB_URI)
@@ -312,7 +341,6 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     res.json(await User.find().select('-password').lean()); 
 });
 
-// 🚨 FIXED: Route explicitly handles the new Category parameter
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
