@@ -761,7 +761,6 @@ function showTicketDetail(ticketData) {
             <li>Please arrive at least 30 minutes before the event starts.</li>
             <li>Carry a valid photo ID along with this e-ticket for verification.</li>
             <li>Outside food and beverages are not allowed inside the venue.</li>
-            <li>For any queries, contact support at tickets@tickethub.com</li>
         </ul>
     </div>
     
