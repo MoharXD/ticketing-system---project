@@ -46,7 +46,7 @@ mongoose.connect(DB_URI)
 
 const verifyActiveUser = async (req, res, next) => {
     if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
-    const user = await User.findById(req.session.userId);
+    const user = await User.findById(req.session.userId).lean();
     if (!user) {
         req.session.destroy(); 
         return res.status(401).json({ success: false, forceLogout: true, message: "Your account has been deleted." });
@@ -67,7 +67,7 @@ app.post('/api/signup', async (req, res) => {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ success: false, message: "Fields required." });
         const cleanUsername = username.trim();
-        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
+        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } }).lean();
         if (existingUser) return res.status(400).json({ success: false, message: "Username taken." });
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -85,7 +85,7 @@ app.post('/api/admin/signup', async (req, res) => {
         if (secretKey !== validSecret) return res.status(403).json({ success: false, message: "Invalid Admin Secret Key." });
 
         const cleanUsername = username.trim();
-        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } });
+        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } }).lean();
         if (existingUser) return res.status(400).json({ success: false, message: "Username taken." });
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -98,7 +98,7 @@ app.post('/api/admin/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } });
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } }).lean();
         if (!user) return res.status(404).json({ success: false, notFound: true, message: "User not found." });
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -115,14 +115,14 @@ app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ succes
 
 app.get('/api/check-session', async (req, res) => {
     if (req.session.userId) {
-        const user = await User.findById(req.session.userId);
+        const user = await User.findById(req.session.userId).lean();
         if(!user) { req.session.destroy(); return res.json({ loggedIn: false }); }
         res.json({ loggedIn: true, username: req.session.username, isAdmin: req.session.isAdmin });
     } else { res.json({ loggedIn: false }); }
 });
 
 app.get('/api/profile', verifyActiveUser, async (req, res) => {
-    const user = await User.findById(req.session.userId).select('-password'); 
+    const user = await User.findById(req.session.userId).select('-password').lean(); 
     res.json({ success: true, user });
 });
 
@@ -140,15 +140,18 @@ app.put('/api/profile', verifyActiveUser, async (req, res) => {
 // ==========================================
 // 🎟️ PUBLIC EVENTS & DYNAMIC SEATS
 // ==========================================
+
+// 🚨 FIXED: Applied .lean() for massive speed improvements on payload fetching
 app.get('/api/events', async (req, res) => {
-    const events = await Event.find().sort({ startDate: 1 }); 
+    const events = await Event.find().sort({ startDate: 1 }).lean(); 
     res.json(events);
 });
 
+// 🚨 FIXED: Excluded heavy text strings from the capacity checker
 app.get('/api/events/:eventId/availability', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
-    const event = await Event.findById(req.params.eventId);
+    const event = await Event.findById(req.params.eventId).select('capacity').lean();
     if (!event) return res.status(404).json({error: "Event not found"});
     
     const soldForDate = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date });
@@ -159,10 +162,10 @@ app.get('/api/seats/:eventId', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
     
-    const event = await Event.findById(req.params.eventId);
+    const event = await Event.findById(req.params.eventId).select('capacity').lean();
     if (!event) return res.status(404).json({error: "Event not found"});
 
-    const bookedSeats = await Seat.find({ eventId: req.params.eventId, bookingDate: date });
+    const bookedSeats = await Seat.find({ eventId: req.params.eventId, bookingDate: date }).select('seatId').lean();
     const bookedSeatIds = bookedSeats.map(s => s.seatId);
     
     const allSeats = [];
@@ -242,17 +245,21 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
 
 app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
     try {
-        const mySeats = await Seat.find({ $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }] }).populate('eventId');
+        // 🚨 FIXED: Stripped the massive imageUrl to prevent DB lag on the My Bookings screen
+        const mySeats = await Seat.find({ $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }] })
+            .populate('eventId', '-imageUrl')
+            .lean();
+            
         const formattedTickets = mySeats.map(seat => {
             if (!seat.eventId) return null; 
             return {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
-                startDate: seat.eventId.startDate, // 🚨 FIXED: Essential for parsing the Time
+                startDate: seat.eventId.startDate,
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
-                price: seat.eventId.price || 0,    // 🚨 FIXED: Essential for calculating total Amount
+                price: seat.eventId.price || 0,    
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
@@ -288,7 +295,8 @@ app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const usersCount = await User.countDocuments();
-        const events = await Event.find();
+        // 🚨 FIXED: Completely bypasses fetching massive images for analytics math
+        const events = await Event.find().select('title eventType ticketsSold capacity price').lean();
         
         let totalRevenue = 0; let totalTicketsSold = 0; let eventStats = [];
         events.forEach(e => {
@@ -301,8 +309,13 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: "Error fetching analytics." }); }
 });
 
-app.get('/api/admin/events', requireAdmin, async (req, res) => { res.json(await Event.find().sort({ startDate: -1 })); });
-app.get('/api/admin/users', requireAdmin, async (req, res) => { res.json(await User.find().select('-password')); });
+app.get('/api/admin/events', requireAdmin, async (req, res) => { 
+    res.json(await Event.find().sort({ startDate: -1 }).lean()); 
+});
+
+app.get('/api/admin/users', requireAdmin, async (req, res) => { 
+    res.json(await User.find().select('-password').lean()); 
+});
 
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
@@ -346,4 +359,5 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         res.json({ success: true, message: "User and tickets deleted." });
     } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
+
 server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
