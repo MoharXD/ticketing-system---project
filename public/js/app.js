@@ -281,6 +281,8 @@ function displayEvents(events) {
     }
 
     const now = new Date();
+    
+    // 🚨 FIXED: The badge has been removed from the image container and cleanly injected inside the card body.
     container.innerHTML = events.map(e => {
         const isExpired = now > new Date(e.endDate);
         const btnState = isExpired ? 'btn-secondary disabled' : 'btn-danger';
@@ -289,16 +291,25 @@ function displayEvents(events) {
         
         let typeColor = e.eventType === 'Seated' ? 'text-info' : 'text-success';
         let typeIcon = e.eventType === 'Seated' ? '💺' : '🎫';
+        
+        let catBadge = e.category ? `<span class="badge bg-dark border border-secondary text-light">${e.category}</span>` : '';
 
         return `
         <div class="col-md-4">
             <div class="card event-card h-100" data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}" data-type="${e.eventType}" data-price="${e.price || 0}" data-start="${e.startDate}" data-end="${e.endDate}" data-loc="${e.location}">
+                
                 <div class="position-relative">
                     ${imgHtml}
-                    <span class="position-absolute top-0 start-0 m-3 badge border border-secondary ${typeColor}" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);">${typeIcon} ${e.eventType}</span>
                 </div>
+                
                 <div class="card-body d-flex flex-column p-4">
                     <h5 class="fw-bold mb-2 text-white">${e.title}</h5>
+                    
+                    <div class="d-flex gap-2 mb-3">
+                        <span class="badge bg-dark border border-secondary ${typeColor}">${typeIcon} ${e.eventType}</span>
+                        ${catBadge}
+                    </div>
+                    
                     <p class="text-muted small mb-4" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${e.description || 'Experience the ultimate event.'}</p>
                     
                     <div class="d-flex flex-column gap-2 mb-4 small" style="color: #a1a1aa;">
@@ -839,7 +850,7 @@ safeBind('profile-link-btn', 'click', async (e) => {
             const p = document.getElementById('profile-phone'); if(p) p.value = data.user.phone || ''; 
             const a = document.getElementById('profile-address'); if(a) a.value = data.user.address || '';
             const dob = document.getElementById('profile-dob'); const age = document.getElementById('profile-age');
-            if (data.user.dob && dob && age) {
+            if (data.user.dob && age) {
                 const dateString = new Date(data.user.dob).toISOString().split('T')[0];
                 dob.value = dateString; age.value = Math.abs(new Date(Date.now() - new Date(dateString).getTime()).getUTCFullYear() - 1970);
             } else if (dob && age) { dob.value = ''; age.value = ''; }
@@ -892,7 +903,6 @@ safeBind('profile-dob', 'change', (e) => {
 
     try {
         const controller = new AbortController(); 
-        // 🚨 INCREASED TIMEOUT TO 15 SECONDS to give Node time to process giant legacy images in DB
         const timeoutId = setTimeout(() => controller.abort(), 15000); 
         
         const res = await fetch(`/api/check-session?t=${new Date().getTime()}`, { signal: controller.signal });
