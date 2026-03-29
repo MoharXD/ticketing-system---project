@@ -14,7 +14,7 @@
     <header>
         <nav class="navbar bg-warning">
             <div class="container d-flex justify-content-between align-items-center">
-                <span class="navbar-brand text-dark">🛠 Admin Dashboard</span>
+                <span class="navbar-brand text-dark fw-bold">🛠 Admin Dashboard</span>
                 <a href="index.html" class="btn btn-dark btn-sm fw-bold">Back to Main Site</a>
             </div>
         </nav>
@@ -80,11 +80,11 @@
             </div>
         </section>
 
-        <section class="card mb-5 border-0">
-            <div class="card-header fs-5 border-0 pt-4 pb-3">📅 Event Management</div>
-            <div class="card-body p-4">
+        <section class="card mb-5 border-0 bg-transparent">
+            <div class="card-header fs-5 border-0 pt-4 pb-3 px-0 text-white fw-bold">📅 Event Management</div>
+            <div class="card-body p-0">
                 
-                <form id="event-form" class="mb-5 p-4">
+                <form id="event-form" class="mb-5 p-4 rounded" style="background-color: var(--surface-card); border: 1px solid var(--border-color);">
                     <h4 id="form-title" class="text-warning mb-4 fw-bold">✨ Create New Event</h4>
                     <input type="hidden" id="event-id">
                     
@@ -159,23 +159,13 @@
                     </div>
                 </form>
 
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>Event Details</th>
-                                <th>Type/Price</th>
-                                <th>Schedule</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="event-table-body"></tbody>
-                    </table>
-                </div>
+                <div id="event-list-container" class="d-flex flex-column gap-1">
+                    </div>
+
             </div>
         </section>
 
-        <section class="card border-0 mb-5">
+        <section class="card border-0 mb-5" style="background-color: var(--surface-card);">
             <div class="card-header fs-5 border-0 pt-4 pb-3">👥 User Management</div>
             <div class="card-body p-4 table-responsive">
                 <table class="table table-dark table-hover align-middle">
@@ -198,6 +188,7 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="js/admin.js"></script> 
 </body>
