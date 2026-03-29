@@ -235,7 +235,6 @@ function applyFilters() {
     const searchEl = document.getElementById('event-search-bar');
     const searchTerm = searchEl ? searchEl.value.toLowerCase() : '';
     
-    // 🚨 FIXED: Bulletproof string parsing to prevent "toLowerCase of undefined" crashes
     const filteredEvents = allEvents.filter(ev => {
         const safeTitle = ev.title ? ev.title.toLowerCase() : '';
         const safeLoc = ev.location ? ev.location.toLowerCase() : '';
@@ -884,7 +883,6 @@ safeBind('profile-dob', 'change', (e) => {
 (async function initializeApp() {
     const initLoader = document.getElementById('initial-loader');
     
-    // 🚨 FIXED: Failsafe loader hiding mechanism
     const hideLoader = () => {
         if (initLoader) {
             initLoader.style.display = 'none';
@@ -894,8 +892,8 @@ safeBind('profile-dob', 'change', (e) => {
 
     try {
         const controller = new AbortController(); 
-        // 🚨 FIXED: Reduced timeout to 8 seconds so it never traps the user infinitely
-        const timeoutId = setTimeout(() => controller.abort(), 8000); 
+        // 🚨 INCREASED TIMEOUT TO 15 SECONDS to give Node time to process giant legacy images in DB
+        const timeoutId = setTimeout(() => controller.abort(), 15000); 
         
         const res = await fetch(`/api/check-session?t=${new Date().getTime()}`, { signal: controller.signal });
         clearTimeout(timeoutId);
