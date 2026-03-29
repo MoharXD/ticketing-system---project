@@ -590,13 +590,13 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             return acc;
         }, {});
 
-        // Render HTML
+        // Render HTML - 🚨 FIXED: Used encodeURIComponent to prevent HTML breaking
         container.innerHTML = Object.values(grouped).map(g => {
             const totalAmount = g.price * g.count;
             const timeStr = g.time ? new Date(g.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : 'TBD';
             const dateStr = new Date(g.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
             
-            // Clean up seat IDs (Removes "GA-" prefix from General Admission for a cleaner pill)
+            // Clean up seat IDs
             const seatPills = g.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
 
             return `
@@ -618,8 +618,8 @@ safeBind('nav-bookings-link', 'click', async (e) => {
                                 <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-size: 10px; border-radius: 6px; padding: 4px 8px;">confirmed</span>
                             </div>
                             <div class="d-flex flex-column align-items-end">
-                                <button class="btn btn-link text-white fw-bold p-0 m-0 text-decoration-none view-ticket-btn" data-ticket='${JSON.stringify(g).replace(/'/g, "&#39;")}'>View Ticket &gt;</button>
-                                <button class="btn btn-link text-danger p-0 mt-2 small text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}' style="font-size: 12px; opacity: 0.8;">Cancel</button>
+                                <button class="btn btn-link text-white fw-bold p-0 m-0 text-decoration-none view-ticket-btn" data-ticket="${encodeURIComponent(JSON.stringify(g))}">View Ticket &gt;</button>
+                                <button class="btn btn-link text-danger p-0 mt-2 small text-decoration-none cancel-ticket-btn" data-json="${encodeURIComponent(JSON.stringify(g.ids))}" style="font-size: 12px; opacity: 0.8;">Cancel</button>
                             </div>
                         </div>
                         
@@ -663,38 +663,44 @@ safeBind('nav-bookings-link', 'click', async (e) => {
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
+// 🚨 FIXED: Bulletproof delegation using .closest() so it clicks anywhere on the button
 safeBind('my-tickets-container', 'click', async (e) => {
-    if (e.target.classList.contains('cancel-ticket-btn')) {
-        const idsToCancel = JSON.parse(e.target.getAttribute('data-json'));
+    
+    // Check if Cancel was clicked
+    const cancelBtn = e.target.closest('.cancel-ticket-btn');
+    if (cancelBtn) {
+        const idsToCancel = JSON.parse(decodeURIComponent(cancelBtn.getAttribute('data-json')));
         if (!confirm(`Are you sure you want to cancel these ${idsToCancel.length} ticket(s)?`)) return;
         
-        e.target.disabled = true; e.target.innerText = "Cancelling...";
+        cancelBtn.disabled = true; cancelBtn.innerText = "Cancelling...";
         try {
             for(let idObj of idsToCancel) { await fetch('/api/events/cancel-booking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(idObj) }); }
             document.getElementById('nav-bookings-link')?.click(); 
         } catch (err) { alert('Cancellation failed due to a network error.'); }
+        return; // Stop execution
     }
 
-    // 🚨 NEW: Trigger full screen ticket view
-    if (e.target.classList.contains('view-ticket-btn')) {
-        const ticketData = JSON.parse(e.target.getAttribute('data-ticket'));
+    // Check if View Ticket was clicked
+    const viewBtn = e.target.closest('.view-ticket-btn');
+    if (viewBtn) {
+        const ticketData = JSON.parse(decodeURIComponent(viewBtn.getAttribute('data-ticket')));
         showTicketDetail(ticketData);
     }
 });
 
-// 🚨 NEW FUNCTION: Renders the full screen, printable detailed ticket
+// 🚨 NEW: Render Detailed Ticket View
 function showTicketDetail(ticketData) {
     switchView('ticket-detail-section');
     const container = document.getElementById('ticket-detail-container');
+    if (!container) return;
     
-    // Calculate display values
     const timeStr = ticketData.time ? new Date(ticketData.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : 'TBD';
     const dateStr = new Date(ticketData.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
     const totalAmount = ticketData.price * ticketData.count;
     const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
     
-    // Fetch logged in user and format booking date
-    const username = document.getElementById('username-badge').innerText;
+    const usernameBadge = document.getElementById('username-badge');
+    const username = usernameBadge ? usernameBadge.innerText : 'User';
     const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
 
     container.innerHTML = `
@@ -765,7 +771,6 @@ function showTicketDetail(ticketData) {
     </div>
     `;
 
-    // Generate High-Res QR Code for the detailed view
     setTimeout(() => {
         const qrContainer = document.getElementById('full-ticket-qr');
         if (qrContainer) {
@@ -781,7 +786,6 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
-    // Bind bottom action buttons
     safeBind('detail-view-bookings-btn', 'click', () => { document.getElementById('nav-bookings-link')?.click(); });
     safeBind('detail-back-home-btn', 'click', () => { document.getElementById('nav-events-link')?.click(); });
 }
