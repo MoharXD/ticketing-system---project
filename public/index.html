@@ -4,33 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TicketHub | Book Events</title>
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=TICKETHUB_V1">
+    <link rel="stylesheet" href="css/style.css?v=TICKETHUB_V2">
 </head>
 
 <body class="d-flex flex-column min-vh-100">
 
 <header>
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a href="#" id="home-logo" class="navbar-brand"><span>🎟️</span>TicketHub</a>
+    <nav class="navbar navbar-expand-lg border-bottom" style="border-color: #262626 !important;">
+        <div class="container-fluid px-lg-5 d-flex align-items-center">
             
-            <div id="user-display" class="d-none d-flex align-items-center gap-3 ms-auto">
-                <a href="#" id="my-tickets-link" class="text-white text-decoration-none fw-bold small me-3">My Bookings</a>
-                <a href="#" id="profile-link" class="text-white text-decoration-none fw-bold" title="Edit Profile">
-                    <div class="d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1">
-                        <span id="username-badge" class="small"></span>
-                    </div>
-                </a>
-                <button id="logout-btn" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Sign Out</button>
+            <a href="#" id="home-logo" class="navbar-brand text-white fw-bold d-flex align-items-center gap-2">
+                <div class="bg-danger text-white rounded d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 14px;">🎟️</div>
+                TicketHub
+            </a>
+            
+            <div class="mx-auto d-none d-lg-flex gap-5">
+                <a href="#" class="nav-link-custom" id="nav-events-link">Events</a>
+                <a href="#" class="nav-link-custom d-none" id="nav-bookings-link">My Bookings</a>
+                <a href="admin.html" class="nav-link-custom d-none" id="nav-admin-link">Admin</a>
+            </div>
+
+            <div id="guest-display" class="d-flex align-items-center gap-3">
+                <button class="btn text-white fw-bold px-3" id="nav-signin-btn" style="background: transparent;">Sign In</button>
+                <button class="btn btn-danger fw-bold px-4 rounded-pill" id="nav-signup-btn">Sign Up</button>
             </div>
             
-            <div id="guest-display" class="ms-auto">
-                <button class="btn btn-primary btn-sm px-4 rounded-pill" onclick="document.getElementById('toggle-auth').click();">Sign In / Up</button>
+            <div id="user-display" class="d-none align-items-center gap-3">
+                <div class="text-white small fw-bold d-none d-md-block">Hello, <span id="username-badge" class="text-danger"></span></div>
+                <button id="profile-link-btn" class="btn btn-dark btn-sm rounded-pill px-3">Profile</button>
+                <button id="logout-btn" class="btn btn-outline-secondary btn-sm rounded-pill px-3 text-white border-secondary">Sign Out</button>
             </div>
         </div>
     </nav>
@@ -38,9 +44,9 @@
 
 <main class="container pb-5 flex-grow-1">
     
-    <section id="initial-loader" class="text-center mt-5 pt-5">
-        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"><span class="visually-hidden">Loading...</span></div>
-        <h5 class="mt-3 text-muted fw-bold">Connecting...</h5>
+    <section id="initial-loader" class="d-flex flex-column align-items-center justify-content-center" style="height: 60vh;">
+        <div class="spinner-border text-danger mb-4" style="width: 3rem; height: 3rem; border-width: 0.25rem;" role="status"></div>
+        <h5 class="text-muted fw-bold">Connecting securely...</h5>
     </section>
 
     <section id="auth-section" class="row justify-content-center mt-5 d-none">
@@ -57,11 +63,10 @@
                             <label class="form-label">Password</label>
                             <input type="password" id="password" class="form-control" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 py-2 fs-6" id="auth-btn">Sign In</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fs-6" id="auth-submit-btn">Sign In</button>
                     </form>
                     <div class="text-center mt-4">
-                        <a href="#" id="toggle-auth" class="text-decoration-none text-muted small fw-bold">Need an account? Sign up.</a>
-                        <br><a href="admin-login.html" class="text-secondary text-decoration-none small mt-2 d-inline-block">Admin Portal</a>
+                        <a href="admin-login.html" class="text-secondary text-decoration-none small fw-bold">Admin Portal Access</a>
                     </div>
                 </div>
             </div>
@@ -69,37 +74,36 @@
     </section>
 
     <section id="booking-section" class="d-none mt-5">
-        <div class="mb-5">
-            <h2 class="fw-bold mb-2">Upcoming Events</h2>
-            <p class="text-muted mb-4">Discover and book tickets for the hottest events</p>
-            
-            <div class="search-container mb-4 w-100">
-                <span class="text-muted ps-2">🔍</span>
-                <input type="text" id="event-search-bar" class="w-100 text-white" placeholder="Search events, venues, or cities...">
+        <h2 class="fw-bold mb-2">Upcoming Events</h2>
+        <p class="text-muted mb-4">Discover and book tickets for the hottest events</p>
+        
+        <div class="p-1 mb-4 w-100" style="background-color: #0a0a0a; border: 1px solid #262626; border-radius: 8px;">
+            <div class="d-flex align-items-center px-3 py-2">
+                <span class="text-muted me-3">🔍</span>
+                <input type="text" id="event-search-bar" class="w-100 text-white bg-transparent border-0 shadow-none" placeholder="Search events, venues, or cities..." style="outline: none;">
             </div>
-            
-            <div class="d-flex gap-2 flex-wrap mb-4">
-                <div class="filter-pill active">All Events</div>
-                <div class="filter-pill">Movies</div>
-                <div class="filter-pill">Concerts</div>
-                <div class="filter-pill">Sports</div>
-                <div class="filter-pill">Theater</div>
-            </div>
+        </div>
+        
+        <div class="d-flex gap-2 flex-wrap mb-5 pb-3 border-bottom border-dark">
+            <button class="btn btn-danger rounded-pill px-4 fw-bold">All Events</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Movies</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Concerts</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Sports</button>
+            <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold text-white border-dark">Theater</button>
         </div>
 
         <div id="events-container" class="row mb-5 text-start g-4"></div>
     </section>
 
     <article id="action-section" class="d-none mt-4">
-        <button id="back-to-events" class="btn btn-link text-muted text-decoration-none mb-4 p-0 fw-bold">← Back to Events</button>
+        <button id="back-to-events-btn" class="btn btn-link text-muted text-decoration-none mb-4 p-0 fw-bold">← Back to Events</button>
         
         <div class="row g-4">
             <div class="col-lg-8">
                 
                 <div class="card border-0 p-4 mb-4">
                     <h2 id="selected-event-title" class="fw-bold mb-3"></h2>
-                    <div class="d-flex gap-4 flex-wrap mt-2" id="selected-event-details-bar">
-                        </div>
+                    <div class="d-flex gap-4 flex-wrap mt-2" id="selected-event-details-bar"></div>
                 </div>
                 
                 <div id="date-selection-container" class="card border-0 p-4 mb-4 d-none w-100">
@@ -117,12 +121,6 @@
                     </div>
 
                     <div id="seat-map" class="w-100 mb-5 d-flex justify-content-center"></div>
-                    
-                    <div class="d-flex justify-content-center gap-4 mt-2 mb-2">
-                        <div class="d-flex align-items-center small text-muted fw-bold"><div class="bms-seat available m-0 me-2" style="width:20px;height:20px;pointer-events:none;"></div> Available</div>
-                        <div class="d-flex align-items-center small text-muted fw-bold"><div class="bms-seat selected m-0 me-2" style="width:20px;height:20px;pointer-events:none;"></div> Selected</div>
-                        <div class="d-flex align-items-center small text-muted fw-bold"><div class="bms-seat booked m-0 me-2" style="width:20px;height:20px;pointer-events:none;"></div> Sold</div>
-                    </div>
                 </div>
 
                 <div id="general-view" class="card border-0 p-4 d-none">
@@ -142,7 +140,6 @@
                 <div class="order-summary">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="fw-bold m-0">Order Summary</h5>
-                        <small class="text-muted" style="font-size: 12px; cursor: pointer;">Clear All</small>
                     </div>
                     
                     <div id="summary-seats-container" class="mb-4 d-none">
@@ -155,15 +152,15 @@
                         <span class="fw-bold small">₹<span id="summary-subtotal">0</span></span>
                     </div>
                     <div class="d-flex justify-content-between mb-4">
-                        <span class="text-muted small">Taxes & Fees</span>
-                        <span class="fw-bold small text-success">Included</span>
+                        <span class="text-muted small">Convenience Fee (2%)</span>
+                        <span class="fw-bold small text-muted">₹<span id="summary-fee">0</span></span>
                     </div>
                     
                     <hr class="border-secondary my-3" style="opacity: 0.5;">
                     
                     <div class="d-flex justify-content-between mb-4 align-items-center">
                         <span class="fs-5 fw-bold">Total</span>
-                        <span class="fs-4 fw-bold text-primary">₹<span id="summary-total">0</span></span>
+                        <span class="fs-4 fw-bold text-danger">₹<span id="summary-total">0</span></span>
                     </div>
                     
                     <button id="sidebar-checkout-btn" class="btn btn-primary w-100 py-3 fw-bold fs-6" disabled>Proceed to Checkout</button>
@@ -185,28 +182,16 @@
                         <h2 class="fw-bold text-white mb-0">₹<span id="payment-amount-display">0</span></h2>
                         <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Amount Due</small>
                     </div>
-                    
                     <ul class="nav nav-pills nav-justified mb-4" id="payment-tabs" role="tablist">
-                        <li class="nav-item" role="presentation"><button class="nav-link active fw-bold py-2" data-bs-toggle="pill" data-bs-target="#card-payment">💳 Card</button></li>
-                        <li class="nav-item" role="presentation"><button class="nav-link fw-bold py-2" data-bs-toggle="pill" data-bs-target="#upi-payment">📱 UPI</button></li>
+                        <li class="nav-item"><button class="nav-link active fw-bold py-2 btn-dark" data-bs-toggle="pill" data-bs-target="#card-payment">💳 Card</button></li>
+                        <li class="nav-item"><button class="nav-link fw-bold py-2 btn-dark mx-2" data-bs-toggle="pill" data-bs-target="#upi-payment">📱 UPI</button></li>
                     </ul>
-                    
                     <div class="tab-content" id="payment-tabContent">
-                        <div class="tab-pane fade show active" id="card-payment" role="tabpanel">
-                            <div class="mb-3">
-                                <label class="form-label small">Card Number</label>
-                                <input type="text" class="form-control" placeholder="0000 1111 2222 3333" maxlength="19">
-                            </div>
-                            <div class="row">
-                                <div class="col-6 mb-3"><label class="form-label small">Expiry</label><input type="text" class="form-control" placeholder="MM/YY"></div>
-                                <div class="col-6 mb-3"><label class="form-label small">CVV</label><input type="password" class="form-control" placeholder="123"></div>
-                            </div>
+                        <div class="tab-pane fade show active" id="card-payment">
+                            <div class="mb-3"><label class="form-label small">Card Number</label><input type="text" class="form-control" placeholder="0000 1111 2222 3333"></div>
                         </div>
-                        <div class="tab-pane fade" id="upi-payment" role="tabpanel">
-                            <div class="mb-3 text-center py-3">
-                                <label class="form-label small">Enter UPI ID</label>
-                                <input type="text" class="form-control text-center fw-bold" placeholder="username@bank">
-                            </div>
+                        <div class="tab-pane fade" id="upi-payment">
+                            <div class="mb-3 text-center py-3"><label class="form-label small">Enter UPI ID</label><input type="text" class="form-control text-center fw-bold" placeholder="username@bank"></div>
                         </div>
                     </div>
                     <button type="button" id="confirm-payment-btn" class="btn btn-primary w-100 fw-bold py-3 mt-2">Pay Securely Now</button>
@@ -224,10 +209,10 @@
 
     <section id="profile-section" class="row justify-content-center d-none mt-5 text-start">
         <div class="col-md-7">
-            <div class="card p-4">
+            <div class="card p-4 border-0">
                 <div class="card-body">
                     <h3 class="mb-4 fw-bold">Profile Settings</h3>
-                    <div id="profile-alert" class="alert d-none text-center fw-bold" role="alert"></div>
+                    <div id="profile-alert" class="alert d-none text-center fw-bold"></div>
                     <form id="profile-form">
                         <div class="mb-3"><label class="form-label">Username</label><input type="text" id="profile-username" class="form-control" required></div>
                         <div class="mb-3"><label class="form-label">Full Name</label><input type="text" id="profile-fullname" class="form-control"></div>
