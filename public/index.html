@@ -118,9 +118,17 @@
 
                 <div id="seated-view" class="card border-0 p-4 d-none">
                     <h5 class="fw-bold mb-4">Select Your Seats</h5>
-                    <p class="text-muted small mb-4">Click on available seats to select them. You can select up to 10 seats.</p>
                     
-                    <div class="bms-screen-container">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+                        <p class="text-muted small mb-3 mb-md-0">Click on available seats to select them. You can select up to 10 seats.</p>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-2"><div class="bms-seat available m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Available</span></div>
+                            <div class="d-flex align-items-center gap-2"><div class="bms-seat selected m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Selected</span></div>
+                            <div class="d-flex align-items-center gap-2"><div class="bms-seat booked disabled m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Sold</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bms-screen-container mt-2">
                         <div class="bms-screen"></div>
                         <div class="bms-screen-text">SCREEN / STAGE</div>
                     </div>
@@ -241,6 +249,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
-<script src="js/app.js?v=V7" defer></script>
+<script src="js/app.js?v=V8" defer></script>
 </body>
 </html>
