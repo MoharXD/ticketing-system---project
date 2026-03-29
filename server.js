@@ -252,9 +252,12 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
         const formattedTickets = mySeats.map(seat => {
             if (!seat.eventId) return null; 
             return {
+                _id: seat._id, // Added for unique QR Code hash
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
+                eventStart: seat.eventId.startDate, // Added for Event Time
+                price: seat.eventId.price,          // Added for Total Amount
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
                 seatId: seat.seatId
