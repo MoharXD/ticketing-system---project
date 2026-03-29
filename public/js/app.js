@@ -55,6 +55,7 @@ function getDatesInRange(startDate, endDate) {
     let today = new Date();
     today.setHours(0,0,0,0);
 
+    // Filter out past dates! If event started yesterday, start calendar from TODAY
     if (curr < today) {
         curr = new Date(today);
     }
@@ -169,19 +170,20 @@ authForm.addEventListener('submit', async (e) => {
     } catch (err) { alert("Server error. Please try again."); }
 });
 
-// 🚨 THE FIX: Safe DOM Toggling instead of Injection 🚨
 function showBookingScreen(username, isAdmin = false) {
     authSection.classList.add('d-none'); 
     profileSection.classList.add('d-none'); 
     ticketsSection.classList.add('d-none'); 
     bookingSection.classList.remove('d-none');
+    
     userDisplay.classList.remove('d-none'); 
     usernameBadge.innerText = username;
     
     const adminBtn = document.getElementById('admin-btn');
-    if (adminBtn) {
-        if (isAdmin) adminBtn.classList.remove('d-none');
-        else adminBtn.classList.add('d-none');
+    if (isAdmin) {
+        adminBtn.classList.remove('d-none'); // Shows the hardcoded Dashboard button
+    } else {
+        adminBtn.classList.add('d-none'); // Hides it for normal users
     }
     
     renderEvents(); 
@@ -307,8 +309,10 @@ document.getElementById('events-container').addEventListener('click', async (e) 
         } else {
             datesContainer.innerHTML = dates.map(d => {
                 const dateStr = formatDate(d);
+                
                 let today = new Date(); today.setHours(0,0,0,0);
                 let tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+                
                 let line1 = ""; let line2 = "";
 
                 if (d.getTime() === today.getTime()) {
@@ -548,7 +552,7 @@ document.getElementById('my-tickets-link').addEventListener('click', async (e) =
         tickets.forEach(t => {
             const qrContainer = document.getElementById(`qr-${t.seatId}`);
             if (qrContainer && typeof QRCode !== 'undefined') {
-                const qrDataString = `TicketHub\nEvent: ${t.eventTitle}\nDate: ${new Date(t.bookingDate).toLocaleDateString()}\nSeat: ${t.seatId}`;
+                const qrDataString = `TicketMaster Pro\nEvent: ${t.eventTitle}\nDate: ${new Date(t.bookingDate).toLocaleDateString()}\nSeat: ${t.seatId}`;
                 new QRCode(qrContainer, { text: qrDataString, width: 90, height: 90, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
             }
         });
@@ -650,17 +654,13 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
     }
 });
 
-document.getElementById('logout-btn').addEventListener('click', async (e) => {
-    if (e) e.preventDefault();
+// IMPORTANT FIX: Removed the logic that wiped out the admin-btn entirely.
+document.getElementById('logout-btn').addEventListener('click', async () => {
     await fetch('/api/logout', { method: 'POST' });
     bookingSection.classList.add('d-none'); profileSection.classList.add('d-none'); ticketsSection.classList.add('d-none');
     userDisplay.classList.add('d-none'); authSection.classList.remove('d-none'); actionSection.classList.add('d-none');
     document.getElementById('username').value = ''; document.getElementById('password').value = '';
     if (searchBar) searchBar.value = '';
-    
-    // Safety check to re-hide the admin button on logout
-    const adminBtn = document.getElementById('admin-btn');
-    if (adminBtn) adminBtn.classList.add('d-none');
 });
 
 (async function initializeApp() {
