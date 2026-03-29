@@ -153,6 +153,7 @@ safeBind('auth-form', 'submit', async (e) => {
     } catch (err) { alert("Server error. Please try again."); }
 });
 
+// 🚨 FIXED: Injects into Dropdown Container now
 function showBookingScreen(username, isAdmin = false) {
     switchView('booking-section');
     
@@ -170,21 +171,19 @@ function showBookingScreen(username, isAdmin = false) {
     
     const badge = document.getElementById('username-badge');
     if(badge) badge.innerText = username;
-    
-    document.getElementById('nav-bookings-link')?.classList.remove('d-none');
 
-    if (isAdmin && userDisplay && !document.getElementById('nav-admin-link-injected')) {
-        const adminLink = document.createElement('a'); 
-        adminLink.id = 'nav-admin-link-injected';
-        adminLink.href = 'admin.html'; 
-        adminLink.className = 'text-warning text-decoration-none fw-bold small';
-        adminLink.innerText = 'Admin Panel'; 
-        userDisplay.insertBefore(adminLink, document.getElementById('profile-link-btn'));
+    const adminContainer = document.getElementById('admin-link-container');
+    if (isAdmin && adminContainer) {
+        adminContainer.innerHTML = `<li><a class="dropdown-item fw-bold py-2 text-warning d-flex align-items-center gap-2" href="admin.html" id="nav-admin-link"><span class="fs-6">🛠️</span> Admin Panel</a></li>`;
+    } else if (adminContainer) {
+        adminContainer.innerHTML = '';
     }
+
     renderEvents(); 
 }
 
-safeBind('logout-btn', 'click', async () => {
+safeBind('logout-btn', 'click', async (e) => {
+    e.preventDefault(); 
     await fetch('/api/logout', { method: 'POST' });
     
     const guestDisplay = document.getElementById('guest-display');
@@ -199,8 +198,8 @@ safeBind('logout-btn', 'click', async () => {
         userDisplay.classList.add('d-none');
     }
     
-    document.getElementById('nav-bookings-link')?.classList.add('d-none');
-    document.getElementById('nav-admin-link-injected')?.remove();
+    const adminContainer = document.getElementById('admin-link-container');
+    if(adminContainer) adminContainer.innerHTML = '';
     
     const u = document.getElementById('username'); if(u) u.value = '';
     const p = document.getElementById('password'); if(p) p.value = '';
@@ -795,7 +794,6 @@ function showTicketDetail(ticketData) {
     }, 50);
 
     safeBind('detail-view-bookings-btn', 'click', () => { document.getElementById('nav-bookings-link')?.click(); });
-    // 🚨 FIXED: Now binds safely to the main logo to return to events
     safeBind('detail-back-home-btn', 'click', () => { document.getElementById('home-logo')?.click(); });
 }
 
@@ -866,7 +864,6 @@ safeBind('profile-dob', 'change', (e) => {
         
         const data = await res.json();
         
-        // 🚨 FIX: Force absolutely hide the loader so it can never get stuck!
         if (initLoader) initLoader.style.display = 'none';
         
         if (data.loggedIn) showBookingScreen(data.username, data.isAdmin);
