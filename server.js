@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');               
 const http = require('http');               
 const { Server } = require('socket.io');  
-const compression = require('compression'); // 🚀 NEW: Compresses all internet traffic  
+const compression = require('compression'); 
 require('dotenv').config();                 
 
 const User = require('./models/User'); 
@@ -255,10 +255,10 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
-                startDate: seat.eventId.startDate, 
+                startDate: seat.eventId.startDate, // Required for UI Time
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
-                price: seat.eventId.price || 0,
+                price: seat.eventId.price || 0,    // Required for UI totals
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
@@ -312,8 +312,8 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => { res.json(await U
 
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
-        const { title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl, themeColor } = req.body;
-        await Event.create({ title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl, themeColor });
+        const { title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
+        await Event.create({ title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl });
         io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
     } catch (err) { res.status(500).json({ success: false, message: "Error creating event." }); }
@@ -349,4 +349,5 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         res.json({ success: true, message: "User and tickets deleted." });
     } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
+
 server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
