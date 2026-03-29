@@ -45,36 +45,6 @@ async function loadAnalytics() {
             document.getElementById('stat-tickets').innerText = data.totalTicketsSold.toLocaleString();
             document.getElementById('stat-events').innerText = data.totalEvents.toLocaleString();
             document.getElementById('stat-users').innerText = data.totalUsers.toLocaleString();
-
-            const tbody = document.getElementById('analytics-table-body');
-            if (data.eventStats.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No events found.</td></tr>';
-            } else {
-                tbody.innerHTML = data.eventStats.map(e => {
-                    const percent = e.capacity > 0 ? Math.round((e.ticketsSold / e.capacity) * 100) : 0;
-                    
-                    let barColor = 'bg-success';
-                    if (percent < 30) barColor = 'bg-danger';
-                    else if (percent < 70) barColor = 'bg-warning';
-
-                    return `
-                    <tr>
-                        <td class="ps-4 fw-bold text-light">${e.title}</td>
-                        <td><span class="badge bg-secondary">${e.type}</span></td>
-                        <td style="width: 30%;">
-                            <div class="d-flex justify-content-between small mb-1">
-                                <span>${e.ticketsSold} / ${e.capacity}</span>
-                                <span>${percent}%</span>
-                            </div>
-                            <div class="progress" style="height: 6px; background-color: #334155;">
-                                <div class="progress-bar ${barColor}" role="progressbar" style="width: ${percent}%"></div>
-                            </div>
-                        </td>
-                        <td class="text-end pe-4 fw-bold text-success">₹${e.revenue.toLocaleString()}</td>
-                    </tr>
-                    `;
-                }).join('');
-            }
         }
     } catch (err) {
         console.error("Error loading analytics:", err);
