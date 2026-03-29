@@ -167,16 +167,13 @@ function showBookingScreen(username, isAdmin = false) {
     
     document.getElementById('nav-bookings-link')?.classList.remove('d-none');
 
-    // 🚨 FIX: Correctly place the Admin Link in the center Navbar, NOT injected awkwardly
+    // Place Admin Link correctly
     const adminLink = document.getElementById('nav-admin-link');
     if (isAdmin && adminLink) {
         adminLink.classList.remove('d-none');
     } else if (adminLink) {
         adminLink.classList.add('d-none');
     }
-    
-    // Cleanup any old bugs from previous cache
-    document.getElementById('nav-admin-link-injected')?.remove();
 
     renderEvents(); 
 }
@@ -565,51 +562,78 @@ safeBind('nav-bookings-link', 'click', async (e) => {
 
         if (tickets.length === 0) { container.innerHTML = '<p class="text-muted p-4 border border-secondary rounded">You have no booked tickets yet.</p>'; return; }
 
+        // Group tickets, now including price and time mapping
         const grouped = tickets.reduce((acc, t) => {
             const key = `${t.eventId}-${t.bookingDate}`;
-            if(!acc[key]) { acc[key] = { eventTitle: t.eventTitle, date: t.bookingDate, type: t.eventType, count: 0, seats: [], ids: [] }; }
+            if(!acc[key]) { 
+                acc[key] = { 
+                    eventTitle: t.eventTitle, 
+                    date: t.bookingDate, 
+                    time: t.startDate, 
+                    location: t.location,
+                    type: t.eventType, 
+                    price: t.price || 0,
+                    count: 0, 
+                    seats: [], 
+                    ids: [] 
+                }; 
+            }
             acc[key].count++; acc[key].seats.push(t.seatId); acc[key].ids.push({ eventId: t.eventId, seatId: t.seatId, bookingDate: t.bookingDate }); 
             return acc;
         }, {});
 
-        // 🚨 FIX: Re-integrated the QR Code Box into the new UI layout
+        // 🚨 FIX: Rebuilt the flawless layout matching your mockup
         container.innerHTML = Object.values(grouped).map(g => {
-            const icon = g.type === 'Seated' ? '💺' : '🎫';
-            // Create a safe, unique ID for the QR code container
             g.qrId = `qr-${g.ids[0].seatId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
+            const refId = ('BKM' + g.ids[0].eventId.substring(18, 24)).toUpperCase();
+            const totalAmt = g.price * g.count;
             
             return `
-            <div class="card bg-dark border-secondary mb-3">
-                <div class="card-body d-flex align-items-center justify-content-between p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-secondary rounded p-3 me-4 fs-4">${icon}</div>
-                        <div>
-                            <h5 class="fw-bold mb-1 text-white">${g.eventTitle}</h5>
-                            <div class="text-muted small">${new Date(g.date).toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'})} • ${g.count} Ticket(s)</div>
-                            <div class="text-muted mt-1" style="font-size:11px;">${g.seats.join(', ')}</div>
-                        </div>
+            <div class="card ticket-card mb-4">
+                <div class="d-flex flex-column flex-md-row">
+                    <div class="ticket-qr-section col-md-3">
+                        <div class="bg-white p-2 rounded shadow-sm mb-3" id="${g.qrId}"></div>
+                        <small class="text-muted fw-bold" style="letter-spacing: 1px; font-size: 11px;">${refId}</small>
                     </div>
-                    <div class="d-flex align-items-center gap-4">
-                        <div class="qr-code-box bg-white p-2 rounded shadow-sm" id="${g.qrId}"></div>
-                        <div class="d-flex flex-column align-items-end gap-2">
-                            <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2" style="font-size: 10px; font-weight: 800;">CONFIRMED</span>
-                            <button class="btn btn-link text-danger p-0 small fw-bold text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel</button>
+                    <div class="ticket-details-section col-md-9">
+                        <div class="d-flex justify-content-between align-items-start mb-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <h5 class="fw-bold mb-0 text-white">${g.eventTitle}</h5>
+                                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-2 py-1" style="font-size: 10px;">confirmed</span>
+                            </div>
+                            <button class="btn btn-link text-danger p-0 small fw-bold text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel Ticket</button>
+                        </div>
+                        
+                        <div class="d-flex flex-column gap-2 mb-4">
+                            <div class="text-muted small"><span class="me-2">📅</span> ${new Date(g.date).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short', year:'numeric'})}</div>
+                            <div class="text-muted small"><span class="me-2">🕒</span> ${new Date(g.time).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})}</div>
+                            <div class="text-muted small"><span class="me-2">📍</span> ${g.location}</div>
+                        </div>
+                        
+                        <div class="d-flex gap-5 mt-auto">
+                            <div>
+                                <div class="text-muted mb-1" style="font-size: 11px;">Seats</div>
+                                <div class="fw-bold text-white small">${g.type === 'General' ? `${g.count} General` : g.seats.join(', ')}</div>
+                            </div>
+                            <div>
+                                <div class="text-muted mb-1" style="font-size: 11px;">Amount</div>
+                                <div class="fw-bold text-danger small">₹${totalAmt.toLocaleString()}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>`
         }).join('');
 
-        // 🚨 FIX: Restore the QR Code generation loop
+        // 🚨 FIX: Safely generate all QR Codes instantly
         Object.values(grouped).forEach(g => {
             const qrContainer = document.getElementById(g.qrId);
             if (qrContainer && typeof QRCode !== 'undefined') {
-                qrContainer.innerHTML = ''; // Clear just in case
-                const qrDataString = `TicketHub\nEvent: ${g.eventTitle}\nDate: ${new Date(g.date).toLocaleDateString()}\nSeats: ${g.seats.join(', ')}`;
-                new QRCode(qrContainer, { text: qrDataString, width: 86, height: 86, colorDark : "#0a0a0a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+                qrContainer.innerHTML = '';
+                const qrDataString = `TicketHub\nRef: ${('BKM' + g.ids[0].eventId.substring(18, 24)).toUpperCase()}\nEvent: ${g.eventTitle}\nSeats: ${g.seats.join(', ')}`;
+                new QRCode(qrContainer, { text: qrDataString, width: 90, height: 90, colorDark : "#0a0a0a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
             }
         });
-
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
@@ -680,7 +704,7 @@ safeBind('profile-dob', 'change', (e) => {
 });
 
 // ==========================================
-// 🚀 INITIALIZATION (100% BULLETPROOF)
+// 🚀 INITIALIZATION
 // ==========================================
 (async function initializeApp() {
     const initLoader = document.getElementById('initial-loader');
