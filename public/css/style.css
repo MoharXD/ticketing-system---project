@@ -105,3 +105,40 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
 .table-dark { --bs-table-bg: transparent; --bs-table-color: var(--text-main); --bs-table-border-color: var(--border-color); border-radius: var(--radius-md); }
 .table-dark th { background-color: var(--bg-main) !important; color: var(--text-muted) !important; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid var(--border-color) !important; padding: 16px; }
 .table-dark td { background-color: var(--surface-card) !important; border-bottom: 1px solid var(--border-color) !important; padding: 16px; vertical-align: middle; }
+
+/* MY BOOKINGS UI */
+.seat-pill-sm {
+    background-color: #262626;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-block;
+    border: 1px solid #3f3f46;
+}
+
+.ticket-card-ui {
+    border-color: #262626 !important;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: var(--bg-main);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.ticket-card-ui:hover {
+    border-color: #3f3f46 !important;
+}
+
+.ticket-qr-section {
+    background-color: #121212;
+    min-width: 180px;
+    border-right: 1px solid #262626;
+}
+
+@media (max-width: 768px) {
+    .ticket-qr-section {
+        border-right: none;
+        border-bottom: 1px solid #262626;
+    }
+}
