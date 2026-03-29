@@ -98,7 +98,7 @@ async function refreshGlobalEvents() {
 // ==========================================
 
 const switchView = (viewId) => {
-    ['auth-section', 'booking-section', 'profile-section', 'tickets-section', 'action-section'].forEach(id => {
+    ['auth-section', 'booking-section', 'profile-section', 'tickets-section', 'action-section', 'ticket-detail-section'].forEach(id => {
         document.getElementById(id)?.classList.add('d-none');
     });
     document.getElementById(viewId)?.classList.remove('d-none');
@@ -618,7 +618,7 @@ safeBind('nav-bookings-link', 'click', async (e) => {
                                 <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-size: 10px; border-radius: 6px; padding: 4px 8px;">confirmed</span>
                             </div>
                             <div class="d-flex flex-column align-items-end">
-                                <span class="text-white fw-bold small text-decoration-none" style="cursor: pointer;">View Ticket &gt;</span>
+                                <button class="btn btn-link text-white fw-bold p-0 m-0 text-decoration-none view-ticket-btn" data-ticket='${JSON.stringify(g).replace(/'/g, "&#39;")}'>View Ticket &gt;</button>
                                 <button class="btn btn-link text-danger p-0 mt-2 small text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}' style="font-size: 12px; opacity: 0.8;">Cancel</button>
                             </div>
                         </div>
@@ -674,7 +674,117 @@ safeBind('my-tickets-container', 'click', async (e) => {
             document.getElementById('nav-bookings-link')?.click(); 
         } catch (err) { alert('Cancellation failed due to a network error.'); }
     }
+
+    // 🚨 NEW: Trigger full screen ticket view
+    if (e.target.classList.contains('view-ticket-btn')) {
+        const ticketData = JSON.parse(e.target.getAttribute('data-ticket'));
+        showTicketDetail(ticketData);
+    }
 });
+
+// 🚨 NEW FUNCTION: Renders the full screen, printable detailed ticket
+function showTicketDetail(ticketData) {
+    switchView('ticket-detail-section');
+    const container = document.getElementById('ticket-detail-container');
+    
+    // Calculate display values
+    const timeStr = ticketData.time ? new Date(ticketData.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : 'TBD';
+    const dateStr = new Date(ticketData.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
+    const totalAmount = ticketData.price * ticketData.count;
+    const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
+    
+    // Fetch logged in user and format booking date
+    const username = document.getElementById('username-badge').innerText;
+    const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
+
+    container.innerHTML = `
+    <div class="ticket-detail-wrapper shadow-lg">
+        
+        <div class="ticket-detail-header">
+            <div>
+                <div style="font-size: 13px; opacity: 0.9; margin-bottom: 2px;">Booking ID</div>
+                <h4 class="mb-0 fw-bold">${ticketData.bookingRef}</h4>
+            </div>
+            <span class="badge bg-white text-danger px-4 py-2 border-0" style="font-size: 13px; font-weight: 800; letter-spacing: 0.5px;">CONFIRMED</span>
+        </div>
+        
+        <div class="ticket-detail-body d-flex flex-column flex-md-row gap-5 align-items-center align-items-md-start">
+            <div class="d-flex flex-column align-items-center">
+                <div class="ticket-detail-qr-container mb-3" style="width: 150px; height: 150px;">
+                    <div id="full-ticket-qr" style="width: 100%; height: 100%;"></div>
+                </div>
+                <span class="text-muted small">Scan at venue entry</span>
+            </div>
+            
+            <div class="flex-grow-1 w-100">
+                <h3 class="fw-bold text-white mb-4">${ticketData.eventTitle}</h3>
+                
+                <div class="text-muted mb-4 d-flex flex-column gap-3" style="font-size: 15px;">
+                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">📅</span> ${dateStr}</div>
+                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">🕒</span> ${timeStr}</div>
+                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">📍</span> ${ticketData.location}</div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="text-muted mb-2 small">Seats</div>
+                    <div class="d-flex flex-wrap gap-2">${seatPills}</div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mt-5 p-4 rounded" style="background-color: rgba(255,255,255,0.03);">
+                    <span class="text-muted">Total Paid</span>
+                    <span class="fw-bold text-danger fs-3">₹${totalAmount.toLocaleString()}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ticket-detail-footer flex-column flex-md-row gap-4">
+            <div class="text-muted" style="font-size: 13px;">
+                <div class="mb-1">Booked by: <span class="text-white">${username}</span></div>
+                <div>Booked on: <span class="text-white">${bookedOnStr}</span></div>
+            </div>
+            <div class="d-flex gap-3 w-100 w-md-auto justify-content-end">
+                <button class="btn btn-outline-secondary text-white border-dark fw-bold px-4 py-2 d-flex align-items-center gap-2" onclick="window.print()"><span class="fs-5">📥</span> Download</button>
+                <button class="btn btn-outline-secondary text-white border-dark fw-bold px-4 py-2 d-flex align-items-center gap-2" onclick="alert('Share link copied to clipboard!')"><span class="fs-5">🔗</span> Share</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-card shadow-sm">
+        <h5 class="fw-bold mb-4 text-white">Important Information</h5>
+        <ul>
+            <li>Please arrive at least 30 minutes before the event starts.</li>
+            <li>Carry a valid photo ID along with this e-ticket for verification.</li>
+            <li>Outside food and beverages are not allowed inside the venue.</li>
+            <li>For any queries, contact support at tickets@tickethub.com</li>
+        </ul>
+    </div>
+    
+    <div class="d-flex justify-content-center gap-3 mb-5 pb-5 mt-4">
+        <button id="detail-view-bookings-btn" class="btn btn-danger px-4 py-2 fw-bold">View All Bookings</button>
+        <button id="detail-back-home-btn" class="btn btn-dark px-4 py-2 fw-bold border-secondary d-flex align-items-center gap-2"><span>🏠</span> Back to Home</button>
+    </div>
+    `;
+
+    // Generate High-Res QR Code for the detailed view
+    setTimeout(() => {
+        const qrContainer = document.getElementById('full-ticket-qr');
+        if (qrContainer) {
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: ticketData.bookingRef,
+                width: 126,
+                height: 126,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+    }, 50);
+
+    // Bind bottom action buttons
+    safeBind('detail-view-bookings-btn', 'click', () => { document.getElementById('nav-bookings-link')?.click(); });
+    safeBind('detail-back-home-btn', 'click', () => { document.getElementById('nav-events-link')?.click(); });
+}
 
 safeBind('profile-link-btn', 'click', async (e) => {
     e.preventDefault(); switchView('profile-section');
