@@ -548,7 +548,7 @@ safeBind('confirm-payment-btn', 'click', async (e) => {
 // 📋 MY BOOKINGS & PROFILE
 // ==========================================
 
-safeBind('nav-bookings-link', async (e) => {
+safeBind('nav-bookings-link', 'click', async (e) => {
     e.preventDefault(); switchView('tickets-section');
     const container = document.getElementById('my-tickets-container');
     if(!container) return;
@@ -559,26 +559,29 @@ safeBind('nav-bookings-link', async (e) => {
         const tickets = await res.json();
         if (handlePossibleForceLogout(tickets)) return;
 
-        if (tickets.length === 0) { container.innerHTML = '<p class="text-muted p-4 border border-secondary rounded">You have no booked tickets yet.</p>'; return; }
+        if (tickets.length === 0) { 
+            container.innerHTML = '<p class="text-muted p-4 border border-secondary rounded">You have no booked tickets yet.</p>'; 
+            return; 
+        }
 
-        // Group tickets by Event + Date
+        // Grouping and processing logic
         const grouped = tickets.reduce((acc, t) => {
             const key = `${t.eventId}-${t.bookingDate}`;
             if(!acc[key]) { 
-                // Generate a unique 6-character alphanumeric Booking ID for the UI/QR code
-                const bId = "BKM" + (t._id ? t._id.substring(t._id.length - 6).toUpperCase() : Math.random().toString(36).substring(2,8).toUpperCase());
+                // Generate a pseudo-random, persistent Booking ID for the UI
+                const hash = Math.abs(key.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)).toString(16).toUpperCase().substring(0, 8);
                 
                 acc[key] = { 
                     eventTitle: t.eventTitle, 
                     date: t.bookingDate, 
-                    time: t.eventStart, // Extracted from DB
-                    price: t.price || 0, // Extracted from DB
+                    time: t.startDate, 
                     location: t.location,
                     type: t.eventType, 
+                    price: t.price || 0,
                     count: 0, 
                     seats: [], 
                     ids: [],
-                    bookingId: bId
+                    bookingRef: `BKM${hash}D1`
                 }; 
             }
             acc[key].count++; 
@@ -587,48 +590,53 @@ safeBind('nav-bookings-link', async (e) => {
             return acc;
         }, {});
 
-        // Render the new UI
-        container.innerHTML = Object.values(grouped).map((g, index) => {
-            const totalPrice = (g.count * g.price).toLocaleString('en-IN');
-            const d = new Date(g.date);
-            const startD = g.time ? new Date(g.time) : new Date(g.date);
-
-            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-            const timeStr = startD.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        // Render HTML
+        container.innerHTML = Object.values(grouped).map(g => {
+            const totalAmount = g.price * g.count;
+            const timeStr = g.time ? new Date(g.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : 'TBD';
+            const dateStr = new Date(g.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
+            
+            // Clean up seat IDs (Removes "GA-" prefix from General Admission for a cleaner pill)
+            const seatPills = g.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
 
             return `
-            <div class="card border-0 mb-4 rounded-4 overflow-hidden" style="background-color: #121212; border: 1px solid #262626 !important;">
+            <div class="card bg-transparent border mb-4 ticket-card-ui">
                 <div class="d-flex flex-column flex-md-row">
-                    <div class="p-4 d-flex flex-column align-items-center justify-content-center" style="background-color: #161616; min-width: 220px; border-right: 1px solid #262626;">
-                        <div class="bg-white p-2 rounded-3 mb-3 d-flex align-items-center justify-content-center" id="qr-${index}" style="width: 130px; height: 130px;"></div>
-                        <small class="text-muted fw-bold font-monospace" style="letter-spacing: 1px; font-size: 13px;">${g.bookingId}</small>
+                    
+                    <div class="d-flex flex-column align-items-center justify-content-center p-4 ticket-qr-section">
+                        <div class="bg-white p-2 rounded mb-3" style="aspect-ratio: 1; width: 110px;">
+                            <div class="qr-code-target" data-ref="${g.bookingRef}" style="width: 100%; height: 100%;"></div>
+                        </div>
+                        <span class="text-muted fw-bold" style="font-size: 11px; letter-spacing: 0.5px;">${g.bookingRef}</span>
                     </div>
                     
-                    <div class="p-4 flex-grow-1 position-relative">
+                    <div class="p-4 flex-grow-1 position-relative" style="background-color: #0a0a0a;">
+                        
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div class="d-flex align-items-center gap-3">
-                                <h4 class="fw-bold mb-0 text-white" style="letter-spacing: -0.5px;">${g.eventTitle}</h4>
-                                <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 600; padding: 6px 10px; border-radius: 6px; text-transform: lowercase;">confirmed</span>
+                            <div class="d-flex align-items-center flex-wrap gap-2">
+                                <h5 class="fw-bold mb-0 text-white">${g.eventTitle}</h5>
+                                <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-size: 10px; border-radius: 6px; padding: 4px 8px;">confirmed</span>
                             </div>
-                            <button class="btn btn-link text-white text-decoration-none p-0 small fw-bold cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel Ticket ></button>
+                            <div class="d-flex flex-column align-items-end">
+                                <span class="text-white fw-bold small text-decoration-none" style="cursor: pointer;">View Ticket &gt;</span>
+                                <button class="btn btn-link text-danger p-0 mt-2 small text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}' style="font-size: 12px; opacity: 0.8;">Cancel</button>
+                            </div>
                         </div>
-
-                        <div class="text-muted mb-4 d-flex flex-column gap-2" style="font-size: 14px;">
-                            <div class="d-flex align-items-center"><span class="me-3" style="opacity: 0.7;">📅</span> ${dateStr}</div>
-                            <div class="d-flex align-items-center"><span class="me-3" style="opacity: 0.7;">🕒</span> ${timeStr}</div>
-                            <div class="d-flex align-items-center"><span class="me-3" style="opacity: 0.7;">📍</span> ${g.location}</div>
+                        
+                        <div class="text-muted small mb-4 d-flex flex-column gap-2" style="font-size: 13px;">
+                            <div class="d-flex align-items-center"><span class="me-3 fs-6">📅</span> ${dateStr}</div>
+                            <div class="d-flex align-items-center"><span class="me-3 fs-6">🕒</span> ${timeStr}</div>
+                            <div class="d-flex align-items-center"><span class="me-3 fs-6">📍</span> ${g.location}</div>
                         </div>
-
-                        <div class="d-flex gap-5 mt-auto">
+                        
+                        <div class="d-flex gap-5">
                             <div>
-                                <div class="text-muted mb-2" style="font-size: 13px;">Seats</div>
-                                <div class="d-flex flex-wrap gap-2">
-                                    ${g.seats.map(s => `<span class="badge" style="background-color: #262626; color: white; border: 1px solid #3f3f46; font-size: 14px; padding: 5px 9px; border-radius: 4px;">${s}</span>`).join('')}
-                                </div>
+                                <div class="text-muted mb-2" style="font-size: 12px;">Seats</div>
+                                <div class="d-flex flex-wrap gap-2">${seatPills}</div>
                             </div>
                             <div>
-                                <div class="text-muted mb-2" style="font-size: 13px;">Amount</div>
-                                <div class="fw-bold text-danger lh-1" style="font-size: 1.3rem;">₹${totalPrice}</div>
+                                <div class="text-muted mb-2" style="font-size: 12px;">Amount</div>
+                                <div class="fw-bold text-danger fs-5">₹${totalAmount.toLocaleString()}</div>
                             </div>
                         </div>
                     </div>
@@ -636,19 +644,21 @@ safeBind('nav-bookings-link', async (e) => {
             </div>`
         }).join('');
 
-        // Mount the actual QR Codes into the DOM
-        Object.values(grouped).forEach((g, index) => {
-            const qrContainer = document.getElementById(`qr-${index}`);
-            qrContainer.innerHTML = ''; // Ensure clean slate
-            new QRCode(qrContainer, {
-                text: g.bookingId,
-                width: 114,
-                height: 114,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.L
+        // Generate QR Codes after HTML is painted to the DOM
+        setTimeout(() => {
+            document.querySelectorAll('.qr-code-target').forEach(el => {
+                if(el.innerHTML === "") { // Prevent double generation
+                    new QRCode(el, {
+                        text: el.getAttribute('data-ref'),
+                        width: 94,
+                        height: 94,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.L
+                    });
+                }
             });
-        });
+        }, 50);
 
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
