@@ -142,3 +142,54 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
         border-bottom: 1px solid #262626;
     }
 }
+
+/* FULL TICKET DETAIL UI */
+.ticket-detail-wrapper {
+    border: 1px solid #ef4444; 
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: var(--surface-card);
+    margin-bottom: 24px;
+}
+.ticket-detail-header {
+    background-color: #ef4444; 
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ticket-detail-body {
+    padding: 30px 24px;
+}
+.ticket-detail-qr-container {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ticket-detail-footer {
+    border-top: 1px solid #262626;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0a0a0a;
+}
+.info-card {
+    background-color: var(--surface-card);
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 30px;
+}
+.info-card ul {
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 0;
+}
+.info-card ul li { margin-bottom: 12px; }
+.info-card ul li::marker { color: #ef4444; font-size: 1.2em;}
