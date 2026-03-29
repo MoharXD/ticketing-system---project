@@ -21,25 +21,32 @@
                 <div class="bg-danger text-white rounded d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 14px;">🎟️</div>
                 TicketHub
             </a>
-            
-            <div class="position-absolute start-50 translate-middle-x d-none d-lg-flex gap-5" style="z-index: 5;">
-                <a href="#" class="nav-link-custom d-none" id="nav-bookings-link">My Bookings</a>
-                <a href="admin.html" class="nav-link-custom d-none" id="nav-admin-link">Admin</a>
-            </div>
 
             <div class="d-flex align-items-center" style="z-index: 10;">
+                
                 <div id="guest-display" class="d-flex align-items-center gap-3">
                     <button class="btn text-white fw-bold px-3" id="nav-signin-btn" style="background: transparent;">Sign In</button>
                     <button class="btn btn-danger fw-bold px-4 rounded-pill" id="nav-signup-btn">Sign Up</button>
                 </div>
                 
-                <div id="user-display" class="d-flex align-items-center gap-3 d-none">
-                    <div class="text-white small fw-bold d-none d-md-block">Hello, <span id="username-badge" class="text-danger"></span></div>
-                    <button id="profile-link-btn" class="btn btn-dark btn-sm rounded-pill px-3">Profile</button>
-                    <button id="logout-btn" class="btn btn-outline-secondary btn-sm rounded-pill px-3 text-white border-secondary">Sign Out</button>
+                <div id="user-display" class="d-none align-items-center">
+                    <div class="dropdown">
+                        <a href="#" class="text-white fw-bold text-decoration-none dropdown-toggle d-flex align-items-center gap-1" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 15px; letter-spacing: 0.3px;">
+                            Hello, <span id="username-badge" class="text-danger ms-1"></span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-3" aria-labelledby="userMenuButton" style="border-color: #262626; background-color: #121212; min-width: 210px;">
+                            <li><a class="dropdown-item fw-bold py-2 text-white d-flex align-items-center gap-2" href="#" id="nav-bookings-link"><span class="fs-6">🎟️</span> My Bookings</a></li>
+                            <li><a class="dropdown-item fw-bold py-2 text-white d-flex align-items-center gap-2" href="#" id="profile-link-btn"><span class="fs-6">👤</span> Profile Settings</a></li>
+                            
+                            <div id="admin-link-container"></div>
+                            
+                            <li><hr class="dropdown-divider border-secondary opacity-25 my-2"></li>
+                            <li><a class="dropdown-item fw-bold py-2 text-danger d-flex align-items-center gap-2" href="#" id="logout-btn"><span class="fs-6">🚪</span> Sign Out</a></li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
 
+            </div>
         </div>
     </nav>
 </header>
@@ -237,6 +244,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
-<script src="js/app.js?v=V4" defer></script>
+<script src="js/app.js?v=V5" defer></script>
 </body>
 </html>
