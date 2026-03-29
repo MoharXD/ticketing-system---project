@@ -279,7 +279,6 @@ function displayEvents(events) {
         
         let catBadge = e.category ? `<span class="badge bg-dark border border-secondary text-light">${e.category}</span>` : '';
 
-        // 🚨 FIXED: Removed the -webkit-line-clamp inline style so the text displays fully without "..."
         return `
         <div class="col-md-4">
             <div class="card event-card h-100" data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}" data-type="${e.eventType}" data-price="${e.price || 0}" data-start="${e.startDate}" data-end="${e.endDate}" data-loc="${e.location}">
@@ -420,7 +419,11 @@ function updateOrderSummary(reset = false) {
     let sub = 0; let count = 0;
 
     if (currentEventType === 'Seated') {
-        const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
+        // 🚨 FIX: Now specifically targets #seat-map so it ignores the legend entirely!
+        const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
+            .map(el => el.getAttribute('data-id'))
+            .filter(id => id !== null); // Extra safety check to prevent nulls
+            
         count = selectedSeats.length;
         if(container) container.classList.toggle('d-none', count === 0);
         if(seatsList) seatsList.innerHTML = selectedSeats.map(s => `<span class="seat-pill">${s}</span>`).join('');
@@ -530,7 +533,11 @@ safeBind('general-qty', 'blur', (e) => {
 safeBind('sidebar-checkout-btn', 'click', () => {
     if (!currentSelectedDate) return;
     if (currentEventType === 'Seated') {
-        const selectedSeats = Array.from(document.querySelectorAll('.bms-seat.selected')).map(el => el.getAttribute('data-id'));
+        // 🚨 FIX: Re-applied the #seat-map scoped selector here too!
+        const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
+            .map(el => el.getAttribute('data-id'))
+            .filter(id => id !== null);
+            
         pendingPaymentData = { type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate };
     } else {
         const qty = parseInt(document.getElementById('general-qty').value);

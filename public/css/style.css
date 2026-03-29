@@ -138,7 +138,37 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
 
 
 /* ==========================================
-   📱 RESPONSIVE & MOBILE-FRIENDLY TWEAKS 
+   🚨 1. PREMIUM DROPDOWN UI FIX 🚨 
+   ========================================== */
+.dropdown-menu-dark {
+    background-color: #18181b !important;
+    border: 1px solid #3f3f46 !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+    min-width: 250px !important; /* Forces enough width for text */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important;
+}
+
+.dropdown-menu-dark .dropdown-item {
+    white-space: nowrap !important; /* Forces text to stay on one line! */
+    border-radius: 8px;
+    padding: 10px 16px !important;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    font-size: 15px !important;
+}
+
+.dropdown-menu-dark .dropdown-item:hover {
+    background-color: #27272a !important;
+}
+
+.dropdown-menu-dark .dropdown-divider {
+    border-color: #3f3f46 !important; 
+    margin: 8px 10px !important; 
+}
+
+
+/* ==========================================
+   📱 2. RESPONSIVE & MOBILE-FRIENDLY TWEAKS 
    ========================================== */
 
 /* Navbar Collapsible Fixes for Tablets & Mobile */
@@ -161,7 +191,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
     .card-body { padding: 1.2rem !important; }
     .event-card-img { height: 160px; }
     
-    /* Order Summary Stacking (Disables Sticky on Mobile) */
+    /* Order Summary Stacking */
     .order-summary {
         position: relative !important;
         top: 0 !important;
@@ -169,7 +199,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
         margin-bottom: 30px;
     }
 
-    /* 🚨 The Secret Fix for the Seat Map */
+    /* Horizontal Scroll for Seat Map on Phones */
     .seat-map-wrapper {
         overflow-x: auto;
         padding-bottom: 20px;
@@ -186,28 +216,13 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
     .ticket-detail-header .badge { align-self: flex-start; }
     .ticket-detail-footer { flex-direction: column; align-items: flex-start; gap: 15px; }
     .ticket-detail-footer .d-flex { justify-content: flex-start !important; width: 100%; }
-    
-    /* Action Section layout */
     #selected-event-details-bar { flex-direction: column; gap: 10px !important; align-items: flex-start; }
 }
 
 @media (max-width: 576px) {
-    /* Category Filters */
-    .category-filter-btn {
-        flex: 1 1 40%;
-        padding: 10px !important;
-        font-size: 0.8rem;
-    }
-    
-    /* Auth Forms */
+    .category-filter-btn { flex: 1 1 40%; padding: 10px !important; font-size: 0.8rem; }
     .card.p-4, .card.p-5 { padding: 1.5rem !important; }
-    
-    /* Typography Scaling */
-    h2 { font-size: 1.5rem; }
-    h3 { font-size: 1.3rem; }
-    h5 { font-size: 1.1rem; }
-    
-    /* Admin Grid */
+    h2 { font-size: 1.5rem; } h3 { font-size: 1.3rem; } h5 { font-size: 1.1rem; }
     .admin-event-row { padding: 12px; flex-direction: column; align-items: flex-start; }
     .admin-event-row > div { width: 100%; margin-bottom: 15px; }
     .admin-event-row > div:last-child { margin-bottom: 0; justify-content: flex-start; border: none !important; padding-left: 0 !important;}
