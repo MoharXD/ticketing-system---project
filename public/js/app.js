@@ -548,7 +548,7 @@ safeBind('confirm-payment-btn', 'click', async (e) => {
 // 📋 MY BOOKINGS & PROFILE
 // ==========================================
 
-safeBind('nav-bookings-link', 'click', async (e) => {
+safeBind('nav-bookings-link', async (e) => {
     e.preventDefault(); switchView('tickets-section');
     const container = document.getElementById('my-tickets-container');
     if(!container) return;
@@ -561,33 +561,95 @@ safeBind('nav-bookings-link', 'click', async (e) => {
 
         if (tickets.length === 0) { container.innerHTML = '<p class="text-muted p-4 border border-secondary rounded">You have no booked tickets yet.</p>'; return; }
 
+        // Group tickets by Event + Date
         const grouped = tickets.reduce((acc, t) => {
             const key = `${t.eventId}-${t.bookingDate}`;
-            if(!acc[key]) { acc[key] = { eventTitle: t.eventTitle, date: t.bookingDate, type: t.eventType, count: 0, seats: [], ids: [] }; }
-            acc[key].count++; acc[key].seats.push(t.seatId); acc[key].ids.push({ eventId: t.eventId, seatId: t.seatId, bookingDate: t.bookingDate }); 
+            if(!acc[key]) { 
+                // Generate a unique 6-character alphanumeric Booking ID for the UI/QR code
+                const bId = "BKM" + (t._id ? t._id.substring(t._id.length - 6).toUpperCase() : Math.random().toString(36).substring(2,8).toUpperCase());
+                
+                acc[key] = { 
+                    eventTitle: t.eventTitle, 
+                    date: t.bookingDate, 
+                    time: t.eventStart, // Extracted from DB
+                    price: t.price || 0, // Extracted from DB
+                    location: t.location,
+                    type: t.eventType, 
+                    count: 0, 
+                    seats: [], 
+                    ids: [],
+                    bookingId: bId
+                }; 
+            }
+            acc[key].count++; 
+            acc[key].seats.push(t.seatId); 
+            acc[key].ids.push({ eventId: t.eventId, seatId: t.seatId, bookingDate: t.bookingDate }); 
             return acc;
         }, {});
 
-        container.innerHTML = Object.values(grouped).map(g => {
-            const icon = g.type === 'Seated' ? '💺' : '🎫';
+        // Render the new UI
+        container.innerHTML = Object.values(grouped).map((g, index) => {
+            const totalPrice = (g.count * g.price).toLocaleString('en-IN');
+            const d = new Date(g.date);
+            const startD = g.time ? new Date(g.time) : new Date(g.date);
+
+            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+            const timeStr = startD.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
             return `
-            <div class="card bg-dark border-secondary mb-3">
-                <div class="card-body d-flex align-items-center justify-content-between p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-secondary rounded p-3 me-4 fs-4">${icon}</div>
-                        <div>
-                            <h5 class="fw-bold mb-1 text-white">${g.eventTitle}</h5>
-                            <div class="text-muted small">${new Date(g.date).toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'})} • ${g.count} Ticket(s)</div>
-                            <div class="text-muted mt-1" style="font-size:11px;">${g.seats.join(', ')}</div>
-                        </div>
+            <div class="card border-0 mb-4 rounded-4 overflow-hidden" style="background-color: #121212; border: 1px solid #262626 !important;">
+                <div class="d-flex flex-column flex-md-row">
+                    <div class="p-4 d-flex flex-column align-items-center justify-content-center" style="background-color: #161616; min-width: 220px; border-right: 1px solid #262626;">
+                        <div class="bg-white p-2 rounded-3 mb-3 d-flex align-items-center justify-content-center" id="qr-${index}" style="width: 130px; height: 130px;"></div>
+                        <small class="text-muted fw-bold font-monospace" style="letter-spacing: 1px; font-size: 13px;">${g.bookingId}</small>
                     </div>
-                    <div class="d-flex flex-column align-items-end gap-2">
-                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2">CONFIRMED</span>
-                        <button class="btn btn-link text-danger p-0 small fw-bold text-decoration-none cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel</button>
+                    
+                    <div class="p-4 flex-grow-1 position-relative">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <h4 class="fw-bold mb-0 text-white" style="letter-spacing: -0.5px;">${g.eventTitle}</h4>
+                                <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 600; padding: 6px 10px; border-radius: 6px; text-transform: lowercase;">confirmed</span>
+                            </div>
+                            <button class="btn btn-link text-white text-decoration-none p-0 small fw-bold cancel-ticket-btn" data-json='${JSON.stringify(g.ids)}'>Cancel Ticket ></button>
+                        </div>
+
+                        <div class="text-muted mb-4 d-flex flex-column gap-2" style="font-size: 14px;">
+                            <div class="d-flex align-items-center"><span class="me-3" style="opacity: 0.7;">📅</span> ${dateStr}</div>
+                            <div class="d-flex align-items-center"><span class="me-3" style="opacity: 0.7;">🕒</span> ${timeStr}</div>
+                            <div class="d-flex align-items-center"><span class="me-3" style="opacity: 0.7;">📍</span> ${g.location}</div>
+                        </div>
+
+                        <div class="d-flex gap-5 mt-auto">
+                            <div>
+                                <div class="text-muted mb-2" style="font-size: 13px;">Seats</div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    ${g.seats.map(s => `<span class="badge" style="background-color: #262626; color: white; border: 1px solid #3f3f46; font-size: 14px; padding: 5px 9px; border-radius: 4px;">${s}</span>`).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-muted mb-2" style="font-size: 13px;">Amount</div>
+                                <div class="fw-bold text-danger lh-1" style="font-size: 1.3rem;">₹${totalPrice}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>`
         }).join('');
+
+        // Mount the actual QR Codes into the DOM
+        Object.values(grouped).forEach((g, index) => {
+            const qrContainer = document.getElementById(`qr-${index}`);
+            qrContainer.innerHTML = ''; // Ensure clean slate
+            new QRCode(qrContainer, {
+                text: g.bookingId,
+                width: 114,
+                height: 114,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.L
+            });
+        });
+
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
