@@ -252,14 +252,13 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
         const formattedTickets = mySeats.map(seat => {
             if (!seat.eventId) return null; 
             return {
-                _id: seat._id, // Added for unique QR Code hash
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
-                eventStart: seat.eventId.startDate, // Added for Event Time
-                price: seat.eventId.price,          // Added for Total Amount
+                startDate: seat.eventId.startDate, 
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
+                price: seat.eventId.price || 0,
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
@@ -350,5 +349,4 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         res.json({ success: true, message: "User and tickets deleted." });
     } catch (err) { res.status(500).json({ success: false, message: "Error deleting user." }); }
 });
-
 server.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT} bound to 0.0.0.0`); });
