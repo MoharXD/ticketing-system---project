@@ -145,22 +145,39 @@ async function loadAnalytics() {
     }
 }
 
+// 🚨 FIXED: Completely rewritten to generate the new layout
 async function loadEvents() {
     try {
         const res = await fetch('/api/admin/events');
         const events = await res.json();
-        const tbody = document.getElementById('event-table-body');
+        const container = document.getElementById('event-list-container');
 
         if (events.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No events found.</td></tr>';
+            container.innerHTML = '<div class="text-center text-muted py-5 border rounded" style="border-color: #262626 !important; background-color: var(--surface-card);">No events found.</div>';
             return;
         }
 
-        tbody.innerHTML = events.map(e => {
-            let imgHtml = `<div style="width: 50px; height: 50px; background: ${e.themeColor || '#334155'}; border-radius: 8px; margin-right: 15px; display: inline-block;"></div>`;
+        container.innerHTML = events.map(e => {
+            const d = new Date(e.startDate);
+            const dateStr = d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
+            const timeStr = d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+            
+            const sold = e.ticketsSold || 0;
+            const capacity = e.capacity || 0;
+            const available = Math.max(0, capacity - sold);
+            const percent = capacity > 0 ? Math.round((sold / capacity) * 100) : 0;
+            
+            // Build the image or fallback icon
+            let imgHtml = '';
             if (e.imageUrl) {
-                imgHtml = `<img src="${e.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; border: 2px solid ${e.themeColor || '#E23744'};">`;
+                imgHtml = `<img src="${e.imageUrl}" class="admin-event-img border" style="border-color: ${e.themeColor || '#262626'} !important;">`;
+            } else {
+                const icon = e.eventType === 'Seated' ? '💺' : '🎫';
+                imgHtml = `<div class="admin-event-img border" style="border-color: ${e.themeColor || '#262626'} !important; background-color: rgba(255,255,255,0.05);">${icon}</div>`;
             }
+
+            // Badge styling
+            let badgeClass = e.eventType === 'Seated' ? 'bg-info text-dark' : 'bg-warning text-dark';
             
             let ratingBadge = '';
             if(e.ageLimit === 0) ratingBadge = `<span class="badge bg-success ms-2">U</span>`;
@@ -171,27 +188,51 @@ async function loadEvents() {
             else if(e.ageLimit === 99) ratingBadge = `<span class="badge bg-dark ms-2">S</span>`;
 
             return `
-            <tr>
-                <td class="fw-bold">
-                    <div class="d-flex align-items-center">
-                        ${imgHtml}
-                        <div>${e.title} ${ratingBadge}</div>
+            <div class="admin-event-row rounded mb-2">
+                
+                <div class="d-flex align-items-center flex-grow-1">
+                    ${imgHtml}
+                    <div class="ms-3">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h6 class="fw-bold mb-0 text-white" style="font-size: 15px;">${e.title} ${ratingBadge}</h6>
+                            <span class="badge ${badgeClass} rounded-pill" style="font-size: 10px; padding: 4px 8px; letter-spacing: 0.5px;">${e.eventType}</span>
+                        </div>
+                        <div class="text-muted mb-1" style="font-size: 13px;">${e.location}</div>
+                        <div class="text-muted" style="font-size: 13px;">${dateStr} • ${timeStr}</div>
                     </div>
-                </td>
-                <td>
-                    <span class="badge bg-info text-dark">${e.eventType}</span><br>
-                    <small class="text-success fw-bold">₹${e.price || 0}</small>
-                </td>
-                <td>
-                    <small><strong>Start:</strong> ${new Date(e.startDate).toLocaleString()}</small><br>
-                    <small><strong>End:</strong> ${new Date(e.endDate).toLocaleString()}</small>
-                </td>
-                <td class="text-end">
-                    <button class="btn btn-primary btn-sm me-1" onclick='editEvent(${JSON.stringify(e).replace(/'/g, "&apos;")})'>Edit</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e._id}')">Delete</button>
-                </td>
-            </tr>
-        `}).join('');
+                </div>
+                
+                <div class="d-flex align-items-center justify-content-end gap-4 pe-4 border-end border-secondary border-opacity-25" style="min-width: 250px;">
+                    <div class="admin-event-stat">
+                        <span class="admin-stat-num text-white">${sold}</span>
+                        <span class="admin-stat-label">Sold</span>
+                    </div>
+                    <div class="admin-event-stat">
+                        <span class="admin-stat-num text-success">${available}</span>
+                        <span class="admin-stat-label">Available</span>
+                    </div>
+                    <div class="admin-event-stat" style="width: 50px;">
+                        <span class="fw-bold text-white mb-1" style="font-size: 11px;">${percent}%</span>
+                        <div class="progress w-100" style="height: 4px; background-color: #262626;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ps-4 text-center" style="min-width: 50px;">
+                    <div class="dropdown">
+                        <button class="btn btn-link text-muted p-0 text-decoration-none fs-5" data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg" style="border-color: #262626;">
+                            <li><button class="dropdown-item fw-bold text-white py-2" onclick='editEvent(${JSON.stringify(e).replace(/'/g, "&apos;")})'>✏️ Edit Event</button></li>
+                            <li><hr class="dropdown-divider border-secondary opacity-25 my-1"></li>
+                            <li><button class="dropdown-item text-danger fw-bold py-2" onclick="deleteEvent('${e._id}')">🗑️ Delete Event</button></li>
+                        </ul>
+                    </div>
+                </div>
+                
+            </div>
+            `
+        }).join('');
     } catch (err) {
         console.error("Error loading events:", err);
     }
