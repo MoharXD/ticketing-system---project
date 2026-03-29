@@ -2,12 +2,12 @@
 const express = require('express');         
 const mongoose = require('mongoose');       
 const session = require('express-session'); 
-const MongoStore = require('connect-mongo'); // 🚀 FIX: MongoDB Session Storage
+const MongoStore = require('connect-mongo'); 
 const bcrypt = require('bcryptjs');         
 const path = require('path');               
 const http = require('http');               
-const { Server } = require('socket.io');    
-const compression = require('compression');  // 🚀 FIX: Network Compression
+const { Server } = require('socket.io');  
+const compression = require('compression'); // 🚀 NEW: Compresses all internet traffic  
 require('dotenv').config();                 
 
 const User = require('./models/User'); 
@@ -23,25 +23,20 @@ const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ticketingDB
 
 app.set('trust proxy', 1); 
 
-// Speed Optimization: Compress traffic before sending it over the network
+// 🚀 SPEED FIX 1: Shrink JSON and HTML payloads by ~70% before sending
 app.use(compression()); 
 
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Speed Optimization: Cache static assets in the browser
+// 🚀 SPEED FIX 2: Cache static files for 1 day so the browser loads them instantly from memory
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' })); 
 
-// 🚨 THE ADMIN FIX: Save logins to MongoDB so Render Sleep cycles don't log you out!
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ 
-        mongoUrl: DB_URI, 
-        collectionName: 'sessions', 
-        ttl: 14 * 24 * 60 * 60 
-    }),
+    store: MongoStore.create({ mongoUrl: DB_URI, collectionName: 'sessions', ttl: 14 * 24 * 60 * 60 }),
     cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 * 14 } 
 }));
 
@@ -53,9 +48,6 @@ mongoose.connect(DB_URI)
     })
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// ==========================================
-// 🛡️ SECURITY MIDDLEWARE
-// ==========================================
 const verifyActiveUser = async (req, res, next) => {
     if (!req.session.userId) return res.status(401).json({ success: false, message: "Not logged in" });
     const user = await User.findById(req.session.userId);
@@ -93,9 +85,9 @@ app.post('/api/admin/signup', async (req, res) => {
     try {
         const { username, password, secretKey } = req.body;
         
-        // 🚨 SECURITY FIX: No hardcoded 'admin123' fallback. Uses your strict Render environment variable!
+        // SECURE ADMIN FIX: No hardcoded fallback.
         const validSecret = process.env.ADMIN_SECRET;
-        if (!validSecret) return res.status(500).json({ success: false, message: "Server misconfiguration. Admin Secret missing." });
+        if (!validSecret) return res.status(500).json({ success: false, message: "Admin configuration missing on server." });
         if (secretKey !== validSecret) return res.status(403).json({ success: false, message: "Invalid Admin Secret Key." });
 
         const cleanUsername = username.trim();
@@ -135,9 +127,6 @@ app.get('/api/check-session', async (req, res) => {
     } else { res.json({ loggedIn: false }); }
 });
 
-// ==========================================
-// 👤 USER PROFILE 
-// ==========================================
 app.get('/api/profile', verifyActiveUser, async (req, res) => {
     const user = await User.findById(req.session.userId).select('-password'); 
     res.json({ success: true, user });
@@ -167,6 +156,7 @@ app.get('/api/events/:eventId/availability', async (req, res) => {
     if (!date) return res.status(400).json({error: "Date required"});
     const event = await Event.findById(req.params.eventId);
     if (!event) return res.status(404).json({error: "Event not found"});
+    
     const soldForDate = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date });
     res.json({ capacity: event.capacity, sold: soldForDate, available: event.capacity - soldForDate });
 });
@@ -259,22 +249,17 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
 app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
     try {
         const mySeats = await Seat.find({ $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }] }).populate('eventId');
-        
-        // 🚨 FIX: Mapping the precise data required for the new beautiful UI
         const formattedTickets = mySeats.map(seat => {
             if (!seat.eventId) return null; 
             return {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
-                startDate: seat.eventId.startDate, 
-                bookingDate: seat.bookingDate || seat.eventId.startDate,
+                bookingDate: seat.bookingDate, 
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
-                price: seat.eventId.price || 0,
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
-
         res.json(formattedTickets);
     } catch (err) { res.status(500).json({ success: false, message: "Failed to load tickets." }); }
 });
