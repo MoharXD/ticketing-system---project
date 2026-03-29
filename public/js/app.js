@@ -167,7 +167,7 @@ function showBookingScreen(username, isAdmin = false) {
     
     document.getElementById('nav-bookings-link')?.classList.remove('d-none');
 
-    // Place Admin Link correctly
+    // 🚨 FIX: Correctly toggle the now-existing Admin Link in the HTML
     const adminLink = document.getElementById('nav-admin-link');
     if (isAdmin && adminLink) {
         adminLink.classList.remove('d-none');
@@ -562,7 +562,6 @@ safeBind('nav-bookings-link', 'click', async (e) => {
 
         if (tickets.length === 0) { container.innerHTML = '<p class="text-muted p-4 border border-secondary rounded">You have no booked tickets yet.</p>'; return; }
 
-        // Group tickets, now including price and time mapping
         const grouped = tickets.reduce((acc, t) => {
             const key = `${t.eventId}-${t.bookingDate}`;
             if(!acc[key]) { 
@@ -582,7 +581,6 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             return acc;
         }, {});
 
-        // 🚨 FIX: Rebuilt the flawless layout matching your mockup
         container.innerHTML = Object.values(grouped).map(g => {
             g.qrId = `qr-${g.ids[0].seatId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
             const refId = ('BKM' + g.ids[0].eventId.substring(18, 24)).toUpperCase();
@@ -625,7 +623,6 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             </div>`
         }).join('');
 
-        // 🚨 FIX: Safely generate all QR Codes instantly
         Object.values(grouped).forEach(g => {
             const qrContainer = document.getElementById(g.qrId);
             if (qrContainer && typeof QRCode !== 'undefined') {
