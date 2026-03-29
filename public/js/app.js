@@ -259,7 +259,6 @@ async function renderEvents() {
     }
 }
 
-// 🚨 FIXED: Removed the Absolute Badge overlay and nested everything inside the card body!
 function displayEvents(events) {
     const container = document.getElementById('events-container');
     if(!container) return;
@@ -280,6 +279,7 @@ function displayEvents(events) {
         
         let catBadge = e.category ? `<span class="badge bg-dark border border-secondary text-light">${e.category}</span>` : '';
 
+        // 🚨 FIXED: Removed the -webkit-line-clamp inline style so the text displays fully without "..."
         return `
         <div class="col-md-4">
             <div class="card event-card h-100" data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}" data-type="${e.eventType}" data-price="${e.price || 0}" data-start="${e.startDate}" data-end="${e.endDate}" data-loc="${e.location}">
@@ -296,7 +296,7 @@ function displayEvents(events) {
                         ${catBadge}
                     </div>
                     
-                    <p class="text-muted small mb-4" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${e.description || 'Experience the ultimate event.'}</p>
+                    <p class="text-muted small mb-4">${e.description || 'Experience the ultimate event.'}</p>
                     
                     <div class="d-flex flex-column gap-2 mb-4 small" style="color: #a1a1aa;">
                         <div><span class="text-danger me-2">📅</span> ${new Date(e.startDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</div>
