@@ -255,10 +255,10 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
-                startDate: seat.eventId.startDate, // Required for UI Time
+                startDate: seat.eventId.startDate, 
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
-                price: seat.eventId.price || 0,    // Required for UI totals
+                price: seat.eventId.price || 0,    
                 seatId: seat.seatId
             };
         }).filter(t => t !== null);
@@ -312,8 +312,8 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => { res.json(await U
 
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
-        const { title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
-        await Event.create({ title, ageLimit, eventType, capacity, price, startDate, endDate, location, description, imageUrl });
+        const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
+        await Event.create({ title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl });
         io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
     } catch (err) { res.status(500).json({ success: false, message: "Error creating event." }); }
