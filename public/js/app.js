@@ -18,7 +18,7 @@ let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
 
-// Pre-fetch events safely in the background to eliminate loading screens
+// Pre-fetch events safely in the background
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
     .catch(() => []);
@@ -113,17 +113,14 @@ const setupAuthMode = (isLogin) => {
     isLoginMode = isLogin;
     const title = document.getElementById('auth-title');
     const btn = document.getElementById('auth-submit-btn');
-    const toggle = document.getElementById('toggle-auth');
     
     if (title) title.innerText = isLogin ? 'Sign In' : 'Create Account';
     if (btn) btn.innerText = isLogin ? 'Sign In' : 'Sign Up';
-    if (toggle) toggle.innerText = isLogin ? 'Need an account? Sign up.' : 'Already have an account? Sign in.';
     switchView('auth-section');
 };
 
 safeBind('nav-signin-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(true); });
 safeBind('nav-signup-btn', 'click', (e) => { e.preventDefault(); setupAuthMode(false); });
-safeBind('toggle-auth', 'click', (e) => { e.preventDefault(); setupAuthMode(!isLoginMode); });
 
 // ==========================================
 // 🔑 AUTHENTICATION
@@ -661,7 +658,7 @@ safeBind('profile-dob', 'change', (e) => {
 });
 
 // ==========================================
-// 🚀 INITIALIZATION 
+// 🚀 INITIALIZATION (100% BULLETPROOF)
 // ==========================================
 (async function initializeApp() {
     const initLoader = document.getElementById('initial-loader');
@@ -673,12 +670,14 @@ safeBind('profile-dob', 'change', (e) => {
         if (!res.ok) throw new Error("Server error.");
         
         const data = await res.json();
-        if (initLoader) initLoader.classList.add('d-none');
+        
+        // 🚨 FIX: Force absolutely hide the loader so it can never get stuck!
+        if (initLoader) initLoader.style.display = 'none';
         
         if (data.loggedIn) showBookingScreen(data.username, data.isAdmin);
         else { switchView('auth-section'); }
     } catch (err) {
-        if (initLoader) initLoader.classList.add('d-none');
+        if (initLoader) initLoader.style.display = 'none';
         switchView('auth-section');
     }
 })();
