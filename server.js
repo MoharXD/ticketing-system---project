@@ -140,14 +140,11 @@ app.put('/api/profile', verifyActiveUser, async (req, res) => {
 // ==========================================
 // 🎟️ PUBLIC EVENTS & DYNAMIC SEATS
 // ==========================================
-
-// 🚨 FIXED: Applied .lean() for massive speed improvements on payload fetching
 app.get('/api/events', async (req, res) => {
     const events = await Event.find().sort({ startDate: 1 }).lean(); 
     res.json(events);
 });
 
-// 🚨 FIXED: Excluded heavy text strings from the capacity checker
 app.get('/api/events/:eventId/availability', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
@@ -245,7 +242,6 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
 
 app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
     try {
-        // 🚨 FIXED: Stripped the massive imageUrl to prevent DB lag on the My Bookings screen
         const mySeats = await Seat.find({ $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }] })
             .populate('eventId', '-imageUrl')
             .lean();
@@ -295,7 +291,6 @@ app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const usersCount = await User.countDocuments();
-        // 🚨 FIXED: Completely bypasses fetching massive images for analytics math
         const events = await Event.find().select('title eventType ticketsSold capacity price').lean();
         
         let totalRevenue = 0; let totalTicketsSold = 0; let eventStats = [];
@@ -317,6 +312,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     res.json(await User.find().select('-password').lean()); 
 });
 
+// 🚨 FIXED: Route explicitly handles the new Category parameter
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
