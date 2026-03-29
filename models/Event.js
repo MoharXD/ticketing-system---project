@@ -8,6 +8,7 @@ const eventSchema = new mongoose.Schema({
     description: { type: String, default: '' },
     ageLimit: { type: Number, default: 0 }, 
     eventType: { type: String, enum: ['Seated', 'General'], required: true },
+    category: { type: String, enum: ['Movie', 'Concert', 'Sports', 'Theater'], default: 'Movie' }, 
     capacity: { type: Number, required: true },
     price: { type: Number, required: true, default: 0 }, 
     imageUrl: { type: String, default: '' }, 
