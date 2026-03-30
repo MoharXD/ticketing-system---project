@@ -12,7 +12,7 @@ let currentEventId = null;
 let currentEventPrice = 0; 
 let currentEventType = null;
 let currentSelectedDate = null; 
-let currentSelectedTime = null; // 🚨 NEW
+let currentSelectedTime = null; 
 let allEvents = []; 
 let currentCategoryFilter = 'All'; 
 let pendingPaymentData = null;
@@ -27,11 +27,13 @@ function formatLocalYYYYMMDD(dateObj) {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 }
 
-// 🚨 NEW: 4-Day Rolling Window Logic
+// 🚨 4-Day Rolling Window Logic
 function getNextFourDays() {
     const dates = [];
+    let today = new Date();
+    today.setHours(0,0,0,0);
     for(let i = 0; i < 4; i++) {
-        let d = new Date();
+        let d = new Date(today);
         d.setDate(d.getDate() + i);
         dates.push(d);
     }
@@ -329,15 +331,10 @@ safeBind('events-container', 'click', async (e) => {
     const datesContainer = document.getElementById('date-pills');
     document.getElementById('date-selection-container')?.classList.remove('d-none');
     
-    // Reset Time Slots Container if it exists
     let timeSlotContainer = document.getElementById('time-slot-container');
-    if(!timeSlotContainer) {
-        timeSlotContainer = document.createElement('div');
-        timeSlotContainer.id = 'time-slot-container';
-        timeSlotContainer.className = 'time-slot-container mb-4';
-        document.getElementById('date-selection-container').appendChild(timeSlotContainer);
+    if(timeSlotContainer) {
+        timeSlotContainer.innerHTML = '';
     }
-    timeSlotContainer.innerHTML = '';
     
     if(datesContainer) {
         datesContainer.innerHTML = dates.map(d => {
@@ -370,7 +367,7 @@ safeBind('events-container', 'click', async (e) => {
         });
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        document.querySelector('.district-date-pill')?.click(); // Auto-click today
+        document.querySelector('.district-date-pill')?.click(); 
     }
 });
 
@@ -382,7 +379,7 @@ function getStatusClass(available, capacity) {
     return 'status-red';
 }
 
-// 🚨 CORE FLOW: Fetch and Render Time Slots based on Date
+// 🚨 NEW FLOW: Fetch and Render Time Slots based on Date
 async function fetchAndRenderTimeSlots(dateStr) {
     const timeContainer = document.getElementById('time-slot-container');
     if(!timeContainer) return;
