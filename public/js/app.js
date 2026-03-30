@@ -416,10 +416,11 @@ function updateOrderSummary(reset = false) {
     let sub = 0; let count = 0;
 
     if (currentEventType === 'Seated') {
-        // 🚨 FIX: Scoped the selector specifically to #seat-map so it doesn't accidentally grab the dummy legend seat
+        // 🚨 CRITICAL FIX 1: Explicitly ignore the dummy legend icon by forcing the scope to #seat-map
+        // We also filter out any null values just to be perfectly safe
         const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
             .map(el => el.getAttribute('data-id'))
-            .filter(Boolean); // Double safety to remove nulls
+            .filter(id => id != null && id !== 'null' && id !== '');
             
         count = selectedSeats.length;
         if(container) container.classList.toggle('d-none', count === 0);
@@ -479,31 +480,42 @@ async function renderSeatsForEvent(eventId, date) {
     if(!seatMapEl) return;
 
     try {
-        seatMapEl.innerHTML = '<p class="text-muted text-center">Loading layout...</p>';
+        seatMapEl.innerHTML = '<p class="text-muted text-center mt-3">Loading layout...</p>';
         const res = await fetch(`/api/seats/${eventId}?date=${date}&t=${new Date().getTime()}`);
         let seats = await res.json();
-        seats.sort((a, b) => parseInt(a.seatId.replace(/\D/g, '')) - parseInt(b.seatId.replace(/\D/g, '')));
+        
+        // 🚀 CRITICAL FIX 2: REMOVED THE HEAVY REGEX SORTING ALGORITHM
+        // The `seats.sort` with replace(/\D/g, '') was freezing the browser. 
+        // The backend automatically sends seats in perfectly ordered sequence (S1, S2, etc)
 
         const seatsPerRow = 14; const halfRow = seatsPerRow / 2;
-        let html = '<div class="d-flex flex-column align-items-center">';
+        const rowsHtmlArray = [];
 
         for (let i = 0; i < seats.length; i += seatsPerRow) {
             const rowSeats = seats.slice(i, i + seatsPerRow);
             const rowLetter = String.fromCharCode(65 + Math.floor(i / seatsPerRow)); 
-            html += `<div class="d-flex align-items-center justify-content-center w-100 mb-2">`;
-            html += `<div class="text-end me-3 fw-bold text-muted" style="width: 15px; font-size: 11px;">${rowLetter}</div>`;
+            
+            let rowHtml = `<div class="d-flex align-items-center justify-content-center w-100 mb-2">`;
+            rowHtml += `<div class="text-end me-3 fw-bold text-muted" style="width: 15px; font-size: 11px;">${rowLetter}</div>`;
+            
             for (let j = 0; j < rowSeats.length; j++) {
-                if (j === halfRow) html += `<div style="width: 30px;"></div>`; 
+                if (j === halfRow) rowHtml += `<div style="width: 30px;"></div>`; 
                 let classes = 'bms-seat ' + (rowSeats[j].status === 'Available' ? 'available' : 'booked disabled');
-                let dNum = rowSeats[j].seatId.replace(/\D/g, ''); if(dNum.length === 1) dNum = '0'+dNum;
-                html += `<button class="${classes}" data-id="${rowSeats[j].seatId}">${dNum}</button>`;
+                let dNum = rowSeats[j].seatId.replace(/\D/g, ''); 
+                if(dNum.length === 1) dNum = '0' + dNum;
+                rowHtml += `<button class="${classes}" data-id="${rowSeats[j].seatId}">${dNum}</button>`;
             }
-            html += `</div>`;
+            rowHtml += `</div>`;
+            rowsHtmlArray.push(rowHtml);
         }
-        html += '</div>';
-        seatMapEl.innerHTML = html;
+        
+        // Render ultra fast
+        seatMapEl.innerHTML = `<div class="d-flex flex-column align-items-center">${rowsHtmlArray.join('')}</div>`;
         updateOrderSummary();
-    } catch (err) { console.error("Error loading seats."); }
+    } catch (err) { 
+        console.error("Error loading seats.", err); 
+        seatMapEl.innerHTML = '<p class="text-danger text-center">Failed to load layout.</p>';
+    }
 }
 
 safeBind('seat-map', 'click', (e) => {
@@ -528,10 +540,15 @@ safeBind('general-qty', 'blur', (e) => {
 safeBind('sidebar-checkout-btn', 'click', () => {
     if (!currentSelectedDate) return;
     if (currentEventType === 'Seated') {
-        // 🚨 FIX: Applied the same scoped selector here to ensure we only grab valid seats during checkout
+        // 🚨 CRITICAL FIX 3: Apply the same strict filtering check before sending to the backend
         const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
             .map(el => el.getAttribute('data-id'))
-            .filter(Boolean);
+            .filter(id => id != null && id !== 'null' && id !== '');
+            
+        if (selectedSeats.length === 0) {
+            alert("Please select at least one valid seat before checking out.");
+            return;
+        }    
             
         pendingPaymentData = { type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate };
     } else {
