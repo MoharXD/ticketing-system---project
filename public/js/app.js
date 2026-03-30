@@ -298,7 +298,6 @@ function displayEvents(events) {
     }).join('');
 }
 
-// 🚨 CORE FLOW: Click Event -> Render Rolling Dates
 safeBind('events-container', 'click', async (e) => {
     const card = e.target.closest('.event-card');
     if (!card || card.classList.contains('expired-card')) return;
@@ -379,7 +378,6 @@ function getStatusClass(available, capacity) {
     return 'status-red';
 }
 
-// 🚨 NEW FLOW: Fetch and Render Time Slots based on Date
 async function fetchAndRenderTimeSlots(dateStr) {
     const timeContainer = document.getElementById('time-slot-container');
     if(!timeContainer) return;
@@ -425,7 +423,6 @@ async function fetchAndRenderTimeSlots(dateStr) {
     }
 }
 
-// 🚨 CORE FLOW: Render UI based on BOTH Date and Time
 async function loadEventDataForDateAndTime(date, time, isSoftUpdate = false) {
     try {
         const res = await fetch(`/api/events/${currentEventId}/availability?date=${date}&timeSlot=${time}&t=${new Date().getTime()}`);
@@ -665,7 +662,15 @@ safeBind('nav-bookings-link', 'click', async (e) => {
         container.innerHTML = Object.values(grouped).map(g => {
             const totalAmount = g.price * g.count;
             const dateStr = new Date(g.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
-            const seatPills = g.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
+            
+            // 🚨 OPTIMIZATION 1: Truncate seat pills if there are too many to prevent DOM freezing
+            let seatPills = '';
+            if (g.seats.length > 15) {
+                seatPills = g.seats.slice(0, 15).map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ') +
+                            ` <span class="seat-pill-sm" style="background: var(--brand-primary); border-color: var(--brand-primary);">+${g.seats.length - 15} more</span>`;
+            } else {
+                seatPills = g.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
+            }
 
             return `
             <div class="card bg-transparent border mb-4 ticket-card-ui">
@@ -707,12 +712,26 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             </div>`
         }).join('');
 
+        // 🚨 OPTIMIZATION 2: Lazy Load QR Codes to completely stop Main Thread Blocking
         setTimeout(() => {
-            document.querySelectorAll('.qr-code-target').forEach(el => {
-                if(el.innerHTML === "") {
-                    new QRCode(el, { text: el.getAttribute('data-ref'), width: 94, height: 94, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
-                }
-            });
+            const qrObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const el = entry.target;
+                        if (el.innerHTML === "") {
+                            new QRCode(el, { 
+                                text: el.getAttribute('data-ref'), 
+                                width: 94, height: 94, 
+                                colorDark: "#000000", colorLight: "#ffffff", 
+                                correctLevel: QRCode.CorrectLevel.L 
+                            });
+                        }
+                        observer.unobserve(el); // Stop observing once it's drawn
+                    }
+                });
+            }, { rootMargin: "100px" }); // Start drawing 100px before it enters the screen
+
+            document.querySelectorAll('.qr-code-target').forEach(el => qrObserver.observe(el));
         }, 50);
 
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
