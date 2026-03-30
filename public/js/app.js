@@ -12,6 +12,7 @@ let currentEventId = null;
 let currentEventPrice = 0; 
 let currentEventType = null;
 let currentSelectedDate = null; 
+let currentSelectedTime = null; // 🚨 NEW
 let allEvents = []; 
 let currentCategoryFilter = 'All'; 
 let pendingPaymentData = null;
@@ -26,22 +27,22 @@ function formatLocalYYYYMMDD(dateObj) {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 }
 
-function getDatesInRange(startDate, endDate) {
+// 🚨 NEW: 4-Day Rolling Window Logic
+function getNextFourDays() {
     const dates = [];
-    let curr = new Date(startDate); curr.setHours(0,0,0,0);
-    let end = new Date(endDate); end.setHours(0,0,0,0);
-    let today = new Date(); today.setHours(0,0,0,0);
-    
-    if (curr < today) curr = new Date(today.getTime());
-    while(curr <= end) { dates.push(new Date(curr.getTime())); curr.setDate(curr.getDate() + 1); }
+    for(let i = 0; i < 4; i++) {
+        let d = new Date();
+        d.setDate(d.getDate() + i);
+        dates.push(d);
+    }
     return dates;
 }
 
 const socket = typeof io !== 'undefined' ? io() : null;
 if (socket) {
     socket.on('seatUpdate', async (data) => {
-        if (String(currentEventId) === String(data.eventId) && currentSelectedDate === data.date) {
-            await loadEventDataForDate(currentSelectedDate, true); 
+        if (String(currentEventId) === String(data.eventId) && currentSelectedDate === data.date && currentSelectedTime === data.timeSlot) {
+            await loadEventDataForDateAndTime(currentSelectedDate, currentSelectedTime, true); 
         }
     });
     socket.on('eventUpdate', async () => { await refreshGlobalEvents(); });
@@ -212,9 +213,7 @@ document.querySelectorAll('.category-filter-btn').forEach(btn => {
     });
 });
 
-safeBind('event-search-bar', 'input', () => {
-    applyFilters(); 
-});
+safeBind('event-search-bar', 'input', () => { applyFilters(); });
 
 function applyFilters() {
     const searchEl = document.getElementById('event-search-bar');
@@ -228,7 +227,6 @@ function applyFilters() {
         const matchesCategory = currentCategoryFilter === 'All' || ev.category === currentCategoryFilter;
         return matchesSearch && matchesCategory;
     });
-    
     displayEvents(filteredEvents);
 }
 
@@ -266,7 +264,6 @@ function displayEvents(events) {
     }
 
     const now = new Date();
-    
     container.innerHTML = events.map(e => {
         const isExpired = now > new Date(e.endDate);
         const btnState = isExpired ? 'btn-secondary disabled' : 'btn-danger';
@@ -275,32 +272,20 @@ function displayEvents(events) {
         
         let typeColor = e.eventType === 'Seated' ? 'text-info' : 'text-success';
         let typeIcon = e.eventType === 'Seated' ? '💺' : '🎫';
-        
         let catBadge = e.category ? `<span class="badge bg-dark border border-secondary text-light">${e.category}</span>` : '';
 
         return `
         <div class="col-md-4">
             <div class="card event-card h-100" data-id="${e._id}" data-title="${e.title}" data-age="${e.ageLimit || 0}" data-type="${e.eventType}" data-price="${e.price || 0}" data-start="${e.startDate}" data-end="${e.endDate}" data-loc="${e.location}">
-                
-                <div class="position-relative">
-                    ${imgHtml}
-                </div>
-                
+                <div class="position-relative">${imgHtml}</div>
                 <div class="card-body d-flex flex-column p-4">
                     <h5 class="fw-bold mb-2 text-white">${e.title}</h5>
-                    
-                    <div class="d-flex gap-2 mb-3">
-                        <span class="badge bg-dark border border-secondary ${typeColor}">${typeIcon} ${e.eventType}</span>
-                        ${catBadge}
-                    </div>
-                    
+                    <div class="d-flex gap-2 mb-3"><span class="badge bg-dark border border-secondary ${typeColor}">${typeIcon} ${e.eventType}</span>${catBadge}</div>
                     <p class="text-muted small mb-4">${e.description || 'Experience the ultimate event.'}</p>
-                    
                     <div class="d-flex flex-column gap-2 mb-4 small" style="color: #a1a1aa;">
                         <div><span class="text-danger me-2">📅</span> ${new Date(e.startDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</div>
                         <div><span class="text-danger me-2">📍</span> ${e.location}</div>
                     </div>
-                    
                     <div class="d-flex justify-content-between align-items-end mt-auto pt-3 border-top" style="border-color: #262626 !important;">
                         <div><span class="text-muted d-block" style="font-size:11px;">Starting from</span><span class="fw-bold fs-5 text-white">₹${e.price || 0}</span></div>
                         <button class="btn ${btnState} fw-bold px-4 rounded-3 book-now-btn">${btnText}</button>
@@ -311,6 +296,7 @@ function displayEvents(events) {
     }).join('');
 }
 
+// 🚨 CORE FLOW: Click Event -> Render Rolling Dates
 safeBind('events-container', 'click', async (e) => {
     const card = e.target.closest('.event-card');
     if (!card || card.classList.contains('expired-card')) return;
@@ -318,8 +304,6 @@ safeBind('events-container', 'click', async (e) => {
     const requiredAge = parseInt(card.getAttribute('data-age'));
     currentEventType = card.getAttribute('data-type');
     currentEventPrice = parseFloat(card.getAttribute('data-price')); 
-    const eventStart = card.getAttribute('data-start');
-    const eventEnd = card.getAttribute('data-end');
 
     if (requiredAge > 0) {
         const res = await fetch(`/api/profile?t=${new Date().getTime()}`);
@@ -337,63 +321,180 @@ safeBind('events-container', 'click', async (e) => {
     const titleEl = document.getElementById('selected-event-title');
     if(titleEl) titleEl.innerText = card.getAttribute('data-title'); 
     
-    const d = new Date(eventStart);
-    const detailsBar = document.getElementById('selected-event-details-bar');
-    if(detailsBar) {
-        detailsBar.innerHTML = `
-            <div class="d-flex align-items-center gap-2"><div class="text-muted fs-5">📅</div><div><div class="text-muted" style="font-size:11px;">Date</div><div class="fw-bold small">${d.toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'})}</div></div></div>
-            <div class="d-flex align-items-center gap-2"><div class="text-muted fs-5">🕗</div><div><div class="text-muted" style="font-size:11px;">Time</div><div class="fw-bold small">${d.toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})}</div></div></div>
-            <div class="d-flex align-items-center gap-2"><div class="text-muted fs-5">📍</div><div><div class="text-muted" style="font-size:11px;">Venue</div><div class="fw-bold small">${card.getAttribute('data-loc')}</div></div></div>
-        `;
-    }
-    
     switchView('action-section');
     document.getElementById('seated-view')?.classList.add('d-none');
     document.getElementById('general-view')?.classList.add('d-none');
     
-    const dates = getDatesInRange(eventStart, eventEnd);
+    const dates = getNextFourDays();
     const datesContainer = document.getElementById('date-pills');
     document.getElementById('date-selection-container')?.classList.remove('d-none');
     
-    if (dates.length === 0) {
-        if(datesContainer) datesContainer.innerHTML = '<p class="text-danger w-100 fw-bold mt-2">Event has ended.</p>';
-    } else {
-        let today = new Date(); today.setHours(0,0,0,0);
-        let tomorrow = new Date(today.getTime()); tomorrow.setDate(tomorrow.getDate() + 1);
-        const todayStr = formatLocalYYYYMMDD(today); const tomorrowStr = formatLocalYYYYMMDD(tomorrow);
+    // Reset Time Slots Container if it exists
+    let timeSlotContainer = document.getElementById('time-slot-container');
+    if(!timeSlotContainer) {
+        timeSlotContainer = document.createElement('div');
+        timeSlotContainer.id = 'time-slot-container';
+        timeSlotContainer.className = 'time-slot-container mb-4';
+        document.getElementById('date-selection-container').appendChild(timeSlotContainer);
+    }
+    timeSlotContainer.innerHTML = '';
+    
+    if(datesContainer) {
+        datesContainer.innerHTML = dates.map(d => {
+            const dateStr = formatLocalYYYYMMDD(d);
+            const isToday = d.getDate() === new Date().getDate();
+            const line1 = isToday ? "Today" : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+            const line2 = d.toLocaleDateString('en-US', { weekday: 'short' });
 
-        if(datesContainer) {
-            datesContainer.innerHTML = dates.map(d => {
-                const dateStr = formatLocalYYYYMMDD(d);
-                let line1 = ""; let line2 = "";
-                if (dateStr === todayStr) { line1 = "Today"; line2 = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }); } 
-                else if (dateStr === tomorrowStr) { line1 = "Tomorrow"; line2 = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }); } 
-                else { line1 = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }); line2 = d.toLocaleDateString('en-US', { weekday: 'short' }); }
+            return `<button class="district-date-pill" data-date="${dateStr}" aria-label="${line1}, ${line2}">
+                        <span class="d-block fw-bold mb-1 pe-none">${line1}</span>
+                        <span class="d-block small pe-none" style="font-size:11px;">${line2}</span>
+                    </button>`;
+        }).join('');
 
-                return `<button class="district-date-pill" data-date="${dateStr}">
-                            <span class="d-block fw-bold mb-1 pe-none">${line1}</span>
-                            <span class="d-block small pe-none" style="font-size:11px;">${line2}</span>
-                        </button>`;
-            }).join('');
-
-            document.querySelectorAll('.district-date-pill').forEach(pill => {
-                pill.addEventListener('click', async (btnEv) => {
-                    const targetBtn = btnEv.target.closest('.district-date-pill');
-                    document.querySelectorAll('.district-date-pill').forEach(p => p.classList.remove('active'));
-                    targetBtn.classList.add('active');
-                    
-                    currentSelectedDate = targetBtn.getAttribute('data-date');
-                    updateOrderSummary(true); 
-                    await loadEventDataForDate(currentSelectedDate, false);
-                    targetBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                });
+        document.querySelectorAll('.district-date-pill').forEach(pill => {
+            pill.addEventListener('click', async (btnEv) => {
+                const targetBtn = btnEv.target.closest('.district-date-pill');
+                document.querySelectorAll('.district-date-pill').forEach(p => p.classList.remove('active'));
+                targetBtn.classList.add('active');
+                
+                currentSelectedDate = targetBtn.getAttribute('data-date');
+                currentSelectedTime = null; 
+                updateOrderSummary(true); 
+                document.getElementById('seated-view')?.classList.add('d-none');
+                document.getElementById('general-view')?.classList.add('d-none');
+                
+                await fetchAndRenderTimeSlots(currentSelectedDate);
+                targetBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             });
+        });
 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            document.querySelector('.district-date-pill')?.click();
-        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.querySelector('.district-date-pill')?.click(); // Auto-click today
     }
 });
+
+function getStatusClass(available, capacity) {
+    const percentage = (available / capacity) * 100;
+    if (available === 0) return 'status-sold-out';
+    if (percentage >= 50) return 'status-green';
+    if (percentage >= 10) return 'status-yellow';
+    return 'status-red';
+}
+
+// 🚨 CORE FLOW: Fetch and Render Time Slots based on Date
+async function fetchAndRenderTimeSlots(dateStr) {
+    const timeContainer = document.getElementById('time-slot-container');
+    if(!timeContainer) return;
+    
+    timeContainer.innerHTML = '<span class="text-muted small">Loading showtimes...</span>';
+    
+    try {
+        const res = await fetch(`/api/events/${currentEventId}/timeslots-availability?date=${dateStr}&t=${new Date().getTime()}`);
+        const slotsData = await res.json();
+        
+        if (slotsData.length === 0) {
+            timeContainer.innerHTML = '<span class="text-muted small">No showtimes configured for this event.</span>';
+            return;
+        }
+
+        timeContainer.innerHTML = slotsData.map(slot => {
+            const statusClass = getStatusClass(slot.available, slot.capacity);
+            let statusText = statusClass.includes('green') ? 'Plenty available' : statusClass.includes('yellow') ? 'Filling fast' : 'Almost full';
+            if(slot.available === 0) statusText = 'Sold out';
+
+            return `
+            <button class="time-slot-pill ${statusClass}" data-time="${slot.time}">
+                <span class="fw-bold">${slot.time}</span>
+                <span class="sr-only">${statusText}. ${slot.available} seats left.</span>
+            </button>`;
+        }).join('');
+
+        document.querySelectorAll('.time-slot-pill').forEach(pill => {
+            pill.addEventListener('click', async (e) => {
+                 if(e.target.closest('.time-slot-pill').classList.contains('status-sold-out')) return;
+                 
+                 document.querySelectorAll('.time-slot-pill').forEach(p => p.classList.remove('active'));
+                 const btn = e.target.closest('.time-slot-pill');
+                 btn.classList.add('active');
+                 
+                 currentSelectedTime = btn.getAttribute('data-time');
+                 updateOrderSummary(true);
+                 await loadEventDataForDateAndTime(currentSelectedDate, currentSelectedTime, false);
+            });
+        });
+    } catch (err) {
+        timeContainer.innerHTML = '<span class="text-danger small">Failed to load showtimes.</span>';
+    }
+}
+
+// 🚨 CORE FLOW: Render UI based on BOTH Date and Time
+async function loadEventDataForDateAndTime(date, time, isSoftUpdate = false) {
+    try {
+        const res = await fetch(`/api/events/${currentEventId}/availability?date=${date}&timeSlot=${time}&t=${new Date().getTime()}`);
+        const data = await res.json();
+        
+        const gView = document.getElementById('general-view');
+        const sView = document.getElementById('seated-view');
+
+        if (currentEventType === 'Seated') {
+            if(gView) gView.classList.add('d-none'); 
+            if(sView) sView.classList.remove('d-none');
+            await renderSeatsForEvent(currentEventId, date, time);
+        } else {
+            if(sView) sView.classList.add('d-none'); 
+            if(gView) gView.classList.remove('d-none');
+            
+            const qtyInput = document.getElementById('general-qty');
+            const leftTxt = document.getElementById('tickets-left');
+            if(leftTxt) leftTxt.innerText = data.available;
+            
+            if(qtyInput) {
+                qtyInput.max = data.available;
+                if (data.available <= 0) { qtyInput.value = 0; qtyInput.disabled = true; } 
+                else { if(qtyInput.value == 0 || qtyInput.value > data.available) qtyInput.value = 1; qtyInput.disabled = false; }
+            }
+            updateOrderSummary();
+        }
+    } catch (err) { console.error("Data error."); }
+}
+
+async function renderSeatsForEvent(eventId, date, time) {
+    const seatMapEl = document.getElementById('seat-map');
+    if(!seatMapEl) return;
+
+    try {
+        seatMapEl.innerHTML = '<p class="text-muted text-center mt-3">Loading layout...</p>';
+        const res = await fetch(`/api/seats/${eventId}?date=${date}&timeSlot=${time}&t=${new Date().getTime()}`);
+        let seats = await res.json();
+        
+        const seatsPerRow = 14; const halfRow = seatsPerRow / 2;
+        const rowsHtmlArray = [];
+
+        for (let i = 0; i < seats.length; i += seatsPerRow) {
+            const rowSeats = seats.slice(i, i + seatsPerRow);
+            const rowLetter = String.fromCharCode(65 + Math.floor(i / seatsPerRow)); 
+            
+            let rowHtml = `<div class="d-flex align-items-center justify-content-center w-100 mb-2">`;
+            rowHtml += `<div class="text-end me-3 fw-bold text-muted" style="width: 15px; font-size: 11px;">${rowLetter}</div>`;
+            
+            for (let j = 0; j < rowSeats.length; j++) {
+                if (j === halfRow) rowHtml += `<div style="width: 30px;"></div>`; 
+                let classes = 'bms-seat ' + (rowSeats[j].status === 'Available' ? 'available' : 'booked disabled');
+                let dNum = rowSeats[j].seatId.replace(/\D/g, ''); 
+                if(dNum.length === 1) dNum = '0' + dNum;
+                rowHtml += `<button class="${classes}" data-id="${rowSeats[j].seatId}">${dNum}</button>`;
+            }
+            rowHtml += `</div>`;
+            rowsHtmlArray.push(rowHtml);
+        }
+        
+        seatMapEl.innerHTML = `<div class="d-flex flex-column align-items-center">${rowsHtmlArray.join('')}</div>`;
+        updateOrderSummary();
+    } catch (err) { 
+        seatMapEl.innerHTML = '<p class="text-danger text-center">Failed to load layout.</p>';
+    }
+}
 
 function updateOrderSummary(reset = false) {
     const checkoutBtn = document.getElementById('sidebar-checkout-btn');
@@ -416,8 +517,6 @@ function updateOrderSummary(reset = false) {
     let sub = 0; let count = 0;
 
     if (currentEventType === 'Seated') {
-        // 🚨 CRITICAL FIX 1: Explicitly ignore the dummy legend icon by forcing the scope to #seat-map
-        // We also filter out any null values just to be perfectly safe
         const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
             .map(el => el.getAttribute('data-id'))
             .filter(id => id != null && id !== 'null' && id !== '');
@@ -439,83 +538,8 @@ function updateOrderSummary(reset = false) {
 
     const finalTotal = sub;
     finalCheckoutTotal = finalTotal; 
-
     if(subtotalText) subtotalText.innerText = sub;
     totalText.innerText = finalTotal;
-}
-
-async function loadEventDataForDate(date, isSoftUpdate = false) {
-    try {
-        const res = await fetch(`/api/events/${currentEventId}/availability?date=${date}&t=${new Date().getTime()}`);
-        const data = await res.json();
-        
-        const gView = document.getElementById('general-view');
-        const sView = document.getElementById('seated-view');
-
-        if (currentEventType === 'Seated') {
-            if(gView) gView.classList.add('d-none'); 
-            if(sView) sView.classList.remove('d-none');
-            if(isSoftUpdate) { await renderSeatsForEvent(currentEventId, date); }
-            else { await renderSeatsForEvent(currentEventId, date); }
-        } else {
-            if(sView) sView.classList.add('d-none'); 
-            if(gView) gView.classList.remove('d-none');
-            
-            const qtyInput = document.getElementById('general-qty');
-            const leftTxt = document.getElementById('tickets-left');
-            if(leftTxt) leftTxt.innerText = data.available;
-            
-            if(qtyInput) {
-                qtyInput.max = data.available;
-                if (data.available <= 0) { qtyInput.value = 0; qtyInput.disabled = true; } 
-                else { if(qtyInput.value == 0 || qtyInput.value > data.available) qtyInput.value = 1; qtyInput.disabled = false; }
-            }
-            updateOrderSummary();
-        }
-    } catch (err) { console.error("Data error."); }
-}
-
-async function renderSeatsForEvent(eventId, date) {
-    const seatMapEl = document.getElementById('seat-map');
-    if(!seatMapEl) return;
-
-    try {
-        seatMapEl.innerHTML = '<p class="text-muted text-center mt-3">Loading layout...</p>';
-        const res = await fetch(`/api/seats/${eventId}?date=${date}&t=${new Date().getTime()}`);
-        let seats = await res.json();
-        
-        // 🚀 CRITICAL FIX 2: REMOVED THE HEAVY REGEX SORTING ALGORITHM
-        // The `seats.sort` with replace(/\D/g, '') was freezing the browser. 
-        // The backend automatically sends seats in perfectly ordered sequence (S1, S2, etc)
-
-        const seatsPerRow = 14; const halfRow = seatsPerRow / 2;
-        const rowsHtmlArray = [];
-
-        for (let i = 0; i < seats.length; i += seatsPerRow) {
-            const rowSeats = seats.slice(i, i + seatsPerRow);
-            const rowLetter = String.fromCharCode(65 + Math.floor(i / seatsPerRow)); 
-            
-            let rowHtml = `<div class="d-flex align-items-center justify-content-center w-100 mb-2">`;
-            rowHtml += `<div class="text-end me-3 fw-bold text-muted" style="width: 15px; font-size: 11px;">${rowLetter}</div>`;
-            
-            for (let j = 0; j < rowSeats.length; j++) {
-                if (j === halfRow) rowHtml += `<div style="width: 30px;"></div>`; 
-                let classes = 'bms-seat ' + (rowSeats[j].status === 'Available' ? 'available' : 'booked disabled');
-                let dNum = rowSeats[j].seatId.replace(/\D/g, ''); 
-                if(dNum.length === 1) dNum = '0' + dNum;
-                rowHtml += `<button class="${classes}" data-id="${rowSeats[j].seatId}">${dNum}</button>`;
-            }
-            rowHtml += `</div>`;
-            rowsHtmlArray.push(rowHtml);
-        }
-        
-        // Render ultra fast
-        seatMapEl.innerHTML = `<div class="d-flex flex-column align-items-center">${rowsHtmlArray.join('')}</div>`;
-        updateOrderSummary();
-    } catch (err) { 
-        console.error("Error loading seats.", err); 
-        seatMapEl.innerHTML = '<p class="text-danger text-center">Failed to load layout.</p>';
-    }
 }
 
 safeBind('seat-map', 'click', (e) => {
@@ -538,9 +562,8 @@ safeBind('general-qty', 'blur', (e) => {
 });
 
 safeBind('sidebar-checkout-btn', 'click', () => {
-    if (!currentSelectedDate) return;
+    if (!currentSelectedDate || !currentSelectedTime) return;
     if (currentEventType === 'Seated') {
-        // 🚨 CRITICAL FIX 3: Apply the same strict filtering check before sending to the backend
         const selectedSeats = Array.from(document.querySelectorAll('#seat-map .bms-seat.selected'))
             .map(el => el.getAttribute('data-id'))
             .filter(id => id != null && id !== 'null' && id !== '');
@@ -550,10 +573,10 @@ safeBind('sidebar-checkout-btn', 'click', () => {
             return;
         }    
             
-        pendingPaymentData = { type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate };
+        pendingPaymentData = { type: 'seated', eventId: currentEventId, seats: selectedSeats, selectedDate: currentSelectedDate, timeSlot: currentSelectedTime };
     } else {
         const qty = parseInt(document.getElementById('general-qty').value);
-        pendingPaymentData = { type: 'general', eventId: currentEventId, qty: qty, selectedDate: currentSelectedDate };
+        pendingPaymentData = { type: 'general', eventId: currentEventId, qty: qty, selectedDate: currentSelectedDate, timeSlot: currentSelectedTime };
     }
 
     const amtDisplay = document.getElementById('payment-amount-display');
@@ -586,12 +609,12 @@ safeBind('confirm-payment-btn', 'click', async (e) => {
 
             if (data.success) {
                 if(paymentModalInstance) paymentModalInstance.hide();
-                if(pendingPaymentData.type === 'seated') { await renderSeatsForEvent(pendingPaymentData.eventId, pendingPaymentData.selectedDate); } 
-                else { const q = document.getElementById('general-qty'); if(q) q.value = 1; await loadEventDataForDate(pendingPaymentData.selectedDate, true); }
+                if(pendingPaymentData.type === 'seated') { await renderSeatsForEvent(pendingPaymentData.eventId, pendingPaymentData.selectedDate, pendingPaymentData.timeSlot); } 
+                else { const q = document.getElementById('general-qty'); if(q) q.value = 1; await loadEventDataForDateAndTime(pendingPaymentData.selectedDate, pendingPaymentData.timeSlot, true); }
                 setTimeout(() => alert("✅ Payment Successful!\n\n" + data.message), 400);
             } else {
                 if(paymentModalInstance) paymentModalInstance.hide();
-                await loadEventDataForDate(pendingPaymentData.selectedDate, true); 
+                await loadEventDataForDateAndTime(pendingPaymentData.selectedDate, pendingPaymentData.timeSlot, true); 
                 setTimeout(() => alert("❌ Booking Failed: " + data.message), 400);
             }
         } catch (err) { if(paymentModalInstance) paymentModalInstance.hide(); alert("Network error during payment processing.");
@@ -602,7 +625,6 @@ safeBind('confirm-payment-btn', 'click', async (e) => {
 // ==========================================
 // 📋 MY BOOKINGS & PROFILE
 // ==========================================
-
 safeBind('nav-bookings-link', 'click', async (e) => {
     e.preventDefault(); switchView('tickets-section');
     const container = document.getElementById('my-tickets-container');
@@ -620,14 +642,14 @@ safeBind('nav-bookings-link', 'click', async (e) => {
         }
 
         const grouped = tickets.reduce((acc, t) => {
-            const key = `${t.eventId}-${t.bookingDate}`;
+            const key = `${t.eventId}-${t.bookingDate}-${t.timeSlot}`;
             if(!acc[key]) { 
                 const hash = Math.abs(key.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)).toString(16).toUpperCase().substring(0, 8);
                 
                 acc[key] = { 
                     eventTitle: t.eventTitle, 
                     date: t.bookingDate, 
-                    time: t.startDate, 
+                    time: t.timeSlot, 
                     location: t.location,
                     type: t.eventType, 
                     price: t.price || 0,
@@ -639,30 +661,25 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             }
             acc[key].count++; 
             acc[key].seats.push(t.seatId); 
-            acc[key].ids.push({ eventId: t.eventId, seatId: t.seatId, bookingDate: t.bookingDate }); 
+            acc[key].ids.push({ eventId: t.eventId, seatId: t.seatId, bookingDate: t.bookingDate, timeSlot: t.timeSlot }); 
             return acc;
         }, {});
 
         container.innerHTML = Object.values(grouped).map(g => {
             const totalAmount = g.price * g.count;
-            const timeStr = g.time ? new Date(g.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : 'TBD';
             const dateStr = new Date(g.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
-            
             const seatPills = g.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
 
             return `
             <div class="card bg-transparent border mb-4 ticket-card-ui">
                 <div class="d-flex flex-column flex-md-row">
-                    
                     <div class="d-flex flex-column align-items-center justify-content-center p-4 ticket-qr-section">
                         <div class="bg-white p-2 rounded mb-3" style="aspect-ratio: 1; width: 110px;">
                             <div class="qr-code-target" data-ref="${g.bookingRef}" style="width: 100%; height: 100%;"></div>
                         </div>
                         <span class="text-muted fw-bold" style="font-size: 11px; letter-spacing: 0.5px;">${g.bookingRef}</span>
                     </div>
-                    
                     <div class="p-4 flex-grow-1 position-relative" style="background-color: #0a0a0a;">
-                        
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div class="d-flex align-items-center flex-wrap gap-2">
                                 <h5 class="fw-bold mb-0 text-white">${g.eventTitle}</h5>
@@ -673,13 +690,11 @@ safeBind('nav-bookings-link', 'click', async (e) => {
                                 <button class="btn btn-link text-danger p-0 mt-2 small text-decoration-none cancel-ticket-btn" data-json="${encodeURIComponent(JSON.stringify(g.ids))}" style="font-size: 12px; opacity: 0.8;">Cancel</button>
                             </div>
                         </div>
-                        
                         <div class="text-muted small mb-4 d-flex flex-column gap-2" style="font-size: 13px;">
                             <div class="d-flex align-items-center"><span class="me-3 fs-6">📅</span> ${dateStr}</div>
-                            <div class="d-flex align-items-center"><span class="me-3 fs-6">🕒</span> ${timeStr}</div>
+                            <div class="d-flex align-items-center"><span class="me-3 fs-6">🕒</span> ${g.time}</div>
                             <div class="d-flex align-items-center"><span class="me-3 fs-6">📍</span> ${g.location}</div>
                         </div>
-                        
                         <div class="d-flex gap-5">
                             <div>
                                 <div class="text-muted mb-2" style="font-size: 12px;">Seats</div>
@@ -698,14 +713,7 @@ safeBind('nav-bookings-link', 'click', async (e) => {
         setTimeout(() => {
             document.querySelectorAll('.qr-code-target').forEach(el => {
                 if(el.innerHTML === "") {
-                    new QRCode(el, {
-                        text: el.getAttribute('data-ref'),
-                        width: 94,
-                        height: 94,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.L
-                    });
+                    new QRCode(el, { text: el.getAttribute('data-ref'), width: 94, height: 94, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
                 }
             });
         }, 50);
@@ -714,7 +722,6 @@ safeBind('nav-bookings-link', 'click', async (e) => {
 });
 
 safeBind('my-tickets-container', 'click', async (e) => {
-    
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
     if (cancelBtn) {
         const idsToCancel = JSON.parse(decodeURIComponent(cancelBtn.getAttribute('data-json')));
@@ -740,7 +747,6 @@ function showTicketDetail(ticketData) {
     const container = document.getElementById('ticket-detail-container');
     if (!container) return;
     
-    const timeStr = ticketData.time ? new Date(ticketData.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : 'TBD';
     const dateStr = new Date(ticketData.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
     const totalAmount = ticketData.price * ticketData.count;
     const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
@@ -751,84 +757,39 @@ function showTicketDetail(ticketData) {
 
     container.innerHTML = `
     <div class="ticket-detail-wrapper shadow-lg">
-        
         <div class="ticket-detail-header">
-            <div>
-                <div style="font-size: 13px; opacity: 0.9; margin-bottom: 2px;">Booking ID</div>
-                <h4 class="mb-0 fw-bold">${ticketData.bookingRef}</h4>
-            </div>
+            <div><div style="font-size: 13px; opacity: 0.9; margin-bottom: 2px;">Booking ID</div><h4 class="mb-0 fw-bold">${ticketData.bookingRef}</h4></div>
             <span class="badge bg-white text-danger px-4 py-2 border-0" style="font-size: 13px; font-weight: 800; letter-spacing: 0.5px;">CONFIRMED</span>
         </div>
-        
         <div class="ticket-detail-body d-flex flex-column flex-md-row gap-5 align-items-center align-items-md-start">
             <div class="d-flex flex-column align-items-center">
-                <div class="ticket-detail-qr-container mb-3" style="width: 150px; height: 150px;">
-                    <div id="full-ticket-qr" style="width: 100%; height: 100%;"></div>
-                </div>
+                <div class="ticket-detail-qr-container mb-3" style="width: 150px; height: 150px;"><div id="full-ticket-qr" style="width: 100%; height: 100%;"></div></div>
                 <span class="text-muted small">Scan at venue entry</span>
             </div>
-            
             <div class="flex-grow-1 w-100">
                 <h3 class="fw-bold text-white mb-4">${ticketData.eventTitle}</h3>
-                
                 <div class="text-muted mb-4 d-flex flex-column gap-3" style="font-size: 15px;">
                     <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">📅</span> ${dateStr}</div>
-                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">🕒</span> ${timeStr}</div>
+                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">🕒</span> ${ticketData.time}</div>
                     <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">📍</span> ${ticketData.location}</div>
                 </div>
-                
-                <div class="mb-4">
-                    <div class="text-muted mb-2 small">Seats</div>
-                    <div class="d-flex flex-wrap gap-2">${seatPills}</div>
-                </div>
-                
+                <div class="mb-4"><div class="text-muted mb-2 small">Seats</div><div class="d-flex flex-wrap gap-2">${seatPills}</div></div>
                 <div class="d-flex justify-content-between align-items-center mt-5 p-4 rounded" style="background-color: rgba(255,255,255,0.03);">
-                    <span class="text-muted">Total Paid</span>
-                    <span class="fw-bold text-danger fs-3">₹${totalAmount.toLocaleString()}</span>
+                    <span class="text-muted">Total Paid</span><span class="fw-bold text-danger fs-3">₹${totalAmount.toLocaleString()}</span>
                 </div>
             </div>
         </div>
-        
-        <div class="ticket-detail-footer flex-column flex-md-row gap-4">
-            <div class="text-muted" style="font-size: 13px;">
-                <div class="mb-1">Booked by: <span class="text-white">${username}</span></div>
-                <div>Booked on: <span class="text-white">${bookedOnStr}</span></div>
-            </div>
-            <div class="d-flex gap-3 w-100 w-md-auto justify-content-end">
-                <button class="btn btn-outline-secondary text-white border-dark fw-bold px-4 py-2 d-flex align-items-center gap-2" onclick="window.print()"><span class="fs-5">📥</span> Download</button>
-                <button class="btn btn-outline-secondary text-white border-dark fw-bold px-4 py-2 d-flex align-items-center gap-2" onclick="alert('Share link copied to clipboard!')"><span class="fs-5">🔗</span> Share</button>
-            </div>
-        </div>
     </div>
-
-    <div class="info-card shadow-sm">
-        <h5 class="fw-bold mb-4 text-white">Important Information</h5>
-        <ul>
-            <li>Please arrive at least 30 minutes before the event starts.</li>
-            <li>Carry a valid photo ID along with this e-ticket for verification.</li>
-            <li>Outside food and beverages are not allowed inside the venue.</li>
-            <li>For any queries, contact support at tickets@tickethub.com</li>
-        </ul>
-    </div>
-    
     <div class="d-flex justify-content-center gap-3 mb-5 pb-5 mt-4">
         <button id="detail-view-bookings-btn" class="btn btn-danger px-4 py-2 fw-bold">View All Bookings</button>
         <button id="detail-back-home-btn" class="btn btn-dark px-4 py-2 fw-bold border-secondary d-flex align-items-center gap-2"><span>🏠</span> Back to Home</button>
-    </div>
-    `;
+    </div>`;
 
     setTimeout(() => {
         const qrContainer = document.getElementById('full-ticket-qr');
         if (qrContainer) {
             qrContainer.innerHTML = "";
-            new QRCode(qrContainer, {
-                text: ticketData.bookingRef,
-                width: 126,
-                height: 126,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.M
-            });
+            new QRCode(qrContainer, { text: ticketData.bookingRef, width: 126, height: 126, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
         }
     }, 50);
 
@@ -863,62 +824,43 @@ safeBind('profile-form', 'submit', async (e) => {
     e.preventDefault();
     const submitBtn = document.getElementById('profile-submit-btn'); const alertBox = document.getElementById('profile-alert');
     const userEl = document.getElementById('profile-username'); if(!userEl) return;
-    const newUsername = userEl.value.trim();
     if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = "Saving..."; }
-    if(alertBox) alertBox.classList.add('d-none'); 
-
+    
     try {
-        const payload = { username: newUsername, fullName: document.getElementById('profile-fullname')?.value, email: document.getElementById('profile-email')?.value, phone: document.getElementById('profile-phone')?.value, dob: document.getElementById('profile-dob')?.value, address: document.getElementById('profile-address')?.value };
+        const payload = { username: userEl.value.trim(), fullName: document.getElementById('profile-fullname')?.value, email: document.getElementById('profile-email')?.value, phone: document.getElementById('profile-phone')?.value, dob: document.getElementById('profile-dob')?.value, address: document.getElementById('profile-address')?.value };
         const res = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (handlePossibleForceLogout(data)) return;
         
         if(alertBox) { alertBox.classList.remove('d-none', 'alert-danger', 'alert-success'); alertBox.classList.add(data.success ? 'alert-success' : 'alert-danger'); alertBox.innerText = data.message; }
-        
         if(data.success) {
-            const badge = document.getElementById('username-badge'); if(badge) badge.innerText = data.newUsername || newUsername;
+            const badge = document.getElementById('username-badge'); if(badge) badge.innerText = data.newUsername || userEl.value.trim();
             setTimeout(() => { switchView('booking-section'); if(submitBtn){submitBtn.disabled = false; submitBtn.innerText = "Save Changes";} }, 1500);
         } else if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = "Save Changes"; }
-    } catch (err) { if(alertBox) { alertBox.classList.remove('d-none', 'alert-success'); alertBox.classList.add('alert-danger'); alertBox.innerText = "Network error."; } if(submitBtn){ submitBtn.disabled = false; submitBtn.innerText = "Save Changes"; } }
+    } catch (err) {}
 });
 
 safeBind('profile-dob', 'change', (e) => {
     const ageInput = document.getElementById('profile-age');
-    if(ageInput && e.target.value) {
-        ageInput.value = Math.abs(new Date(Date.now() - new Date(e.target.value).getTime()).getUTCFullYear() - 1970);
-    }
+    if(ageInput && e.target.value) ageInput.value = Math.abs(new Date(Date.now() - new Date(e.target.value).getTime()).getUTCFullYear() - 1970);
 });
 
-// ==========================================
-// 🚀 INITIALIZATION (100% BULLETPROOF)
-// ==========================================
 (async function initializeApp() {
     const initLoader = document.getElementById('initial-loader');
-    
-    const hideLoader = () => {
-        if (initLoader) {
-            initLoader.style.display = 'none';
-            initLoader.classList.add('d-none');
-        }
-    };
+    const hideLoader = () => { if (initLoader) { initLoader.style.display = 'none'; initLoader.classList.add('d-none'); } };
 
     try {
         const controller = new AbortController(); 
         const timeoutId = setTimeout(() => controller.abort(), 15000); 
-        
         const res = await fetch(`/api/check-session?t=${new Date().getTime()}`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        
         if (!res.ok) throw new Error("Server error.");
         
         const data = await res.json();
-        
         hideLoader();
-        
         if (data.loggedIn) showBookingScreen(data.username, data.isAdmin);
         else { switchView('auth-section'); }
     } catch (err) {
-        hideLoader();
-        switchView('auth-section');
+        hideLoader(); switchView('auth-section');
     }
 })();
