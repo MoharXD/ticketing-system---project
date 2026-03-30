@@ -86,7 +86,6 @@ async function loadEvents() {
             const timeStr = d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
             
             const sold = e.ticketsSold || 0;
-            // Note: capacity here is per slot, so this is just a rough estimate visual for the admin panel
             const capacity = e.capacity || 0; 
             const available = Math.max(0, capacity - sold);
             const percent = capacity > 0 ? Math.min(100, Math.round((sold / capacity) * 100)) : 0;
@@ -117,7 +116,7 @@ async function loadEvents() {
             
             let catBadge = e.category ? `<span class="badge ${catColor} ms-3 rounded-pill" style="font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px;">${e.category}</span>` : '';
 
-            // Formatting time slots for display
+            // 🚨 FIXED: Show time slots in admin event list
             let slotsDisplay = e.timeSlots && e.timeSlots.length > 0 ? e.timeSlots.join(', ') : 'No slots';
 
             return `
@@ -211,7 +210,7 @@ eventForm.addEventListener('submit', async (e) => {
         startDate: startInput ? new Date(startInput).toISOString() : null,
         endDate: endInput ? new Date(endInput).toISOString() : null,
         location: document.getElementById('event-location').value,
-        timeSlots: document.getElementById('event-timeslots').value, // 🚨 NEW: Capture time slots
+        timeSlots: document.getElementById('event-timeslots').value, // 🚨 FIXED: Capture time slots
         description: document.getElementById('event-description').value,
         imageUrl: document.getElementById('event-image').value
     };
@@ -265,7 +264,7 @@ window.editEvent = function(eventData) {
     document.getElementById('event-price').value = eventData.price || 0;
     document.getElementById('event-location').value = eventData.location;
     
-    // 🚨 NEW: Populate time slots
+    // 🚨 FIXED: Populate time slots
     document.getElementById('event-timeslots').value = eventData.timeSlots && eventData.timeSlots.length > 0 ? eventData.timeSlots.join(', ') : '';
     
     document.getElementById('event-description').value = eventData.description || '';
@@ -299,7 +298,7 @@ window.resetEventForm = function() {
     document.getElementById('event-image').value = ''; 
     document.getElementById('event-poster-file').value = ''; 
     document.getElementById('event-category').value = 'Movie'; 
-    document.getElementById('event-timeslots').value = ''; // 🚨 NEW: Clear time slots
+    document.getElementById('event-timeslots').value = ''; // 🚨 FIXED: Clear time slots
     
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
