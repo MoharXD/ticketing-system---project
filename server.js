@@ -27,8 +27,6 @@ app.use(compression());
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// 🚨 BUG FIX 1: AGGRESSIVE CACHE BUSTING FOR API ROUTES
-// This prevents the browser from serving stale data from disk cache
 app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
@@ -37,8 +35,6 @@ app.use('/api', (req, res, next) => {
     next();
 });
 
-// 🚨 BUG FIX 2: PREVENT HTML CACHING
-// We cache CSS/JS for speed, but HTML pages must always be fresh
 app.use(express.static(path.join(__dirname, 'public'), { 
     maxAge: '1d',
     setHeaders: (res, filePath) => {
@@ -50,8 +46,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
     }
 })); 
 
-// 🚨 BUG FIX 3: BULLETPROOF SESSIONS
-// Added 'sameSite: lax' and dynamic 'secure' flags to prevent random logouts on cloud hosts
 app.use(session({
     secret: process.env.SESSION_SECRET || 'ticketmaster-secret-key', 
     resave: false,
@@ -174,24 +168,47 @@ app.get('/api/events', async (req, res) => {
     res.json(events);
 });
 
-app.get('/api/events/:eventId/availability', async (req, res) => {
+// 🚨 NEW: Fetch availability for ALL time slots for a specific date
+app.get('/api/events/:eventId/timeslots-availability', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
+    
+    const event = await Event.findById(req.params.eventId).select('capacity timeSlots').lean();
+    if (!event) return res.status(404).json({error: "Event not found"});
+
+    // Calculate availability for each slot
+    const slotsData = [];
+    for (let slot of event.timeSlots) {
+        const soldForSlot = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date, timeSlot: slot });
+        slotsData.push({
+            time: slot,
+            capacity: event.capacity,
+            sold: soldForSlot,
+            available: event.capacity - soldForSlot
+        });
+    }
+    
+    res.json(slotsData);
+});
+
+app.get('/api/events/:eventId/availability', async (req, res) => {
+    const { date, timeSlot } = req.query;
+    if (!date || !timeSlot) return res.status(400).json({error: "Date and TimeSlot required"});
     const event = await Event.findById(req.params.eventId).select('capacity').lean();
     if (!event) return res.status(404).json({error: "Event not found"});
     
-    const soldForDate = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date });
+    const soldForDate = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date, timeSlot: timeSlot });
     res.json({ capacity: event.capacity, sold: soldForDate, available: event.capacity - soldForDate });
 });
 
 app.get('/api/seats/:eventId', async (req, res) => {
-    const { date } = req.query;
-    if (!date) return res.status(400).json({error: "Date required"});
+    const { date, timeSlot } = req.query;
+    if (!date || !timeSlot) return res.status(400).json({error: "Date and TimeSlot required"});
     
     const event = await Event.findById(req.params.eventId).select('capacity').lean();
     if (!event) return res.status(404).json({error: "Event not found"});
 
-    const bookedSeats = await Seat.find({ eventId: req.params.eventId, bookingDate: date }).select('seatId').lean();
+    const bookedSeats = await Seat.find({ eventId: req.params.eventId, bookingDate: date, timeSlot: timeSlot }).select('seatId').lean();
     const bookedSeatIds = bookedSeats.map(s => s.seatId);
     
     const allSeats = [];
@@ -209,14 +226,14 @@ app.get('/api/seats/:eventId', async (req, res) => {
 // 🛒 CORE BOOKING LOGIC
 // ==========================================
 app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
-    const { eventId, seats, selectedDate } = req.body; 
-    if(!selectedDate) return res.status(400).json({success: false, message: "Date required."});
+    const { eventId, seats, selectedDate, timeSlot } = req.body; 
+    if(!selectedDate || !timeSlot) return res.status(400).json({success: false, message: "Date and Time required."});
 
     try {
         const event = await Event.findById(eventId);
         
         const seatsToInsert = seats.map(seatId => ({
-            eventId, seatId, bookingDate: selectedDate, status: 'Booked',
+            eventId, seatId, bookingDate: selectedDate, timeSlot, status: 'Booked',
             bookedBy: req.session.username, userId: req.session.userId
         }));
 
@@ -225,9 +242,9 @@ app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
         event.ticketsSold += seats.length; 
         await event.save();
         
-        io.emit('seatUpdate', { eventId: eventId, date: selectedDate }); 
+        io.emit('seatUpdate', { eventId: eventId, date: selectedDate, timeSlot: timeSlot }); 
         io.emit('dashboardUpdate'); 
-        res.json({ success: true, message: `Successfully booked ${seats.length} seat(s) for ${selectedDate}!` });
+        res.json({ success: true, message: `Successfully booked ${seats.length} seat(s) for ${selectedDate} at ${timeSlot}!` });
     } catch (err) {
         if (err.code === 11000) return res.status(400).json({ success: false, message: "One or more seats were snatched by someone else! Please refresh." });
         res.status(500).json({ success: false, message: "Booking error." });
@@ -235,15 +252,15 @@ app.post('/api/events/book-seats', verifyActiveUser, async (req, res) => {
 });
 
 app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
-    const { eventId, qty, selectedDate } = req.body;
+    const { eventId, qty, selectedDate, timeSlot } = req.body;
     const requestedQty = Number(qty);
 
     try {
         const event = await Event.findById(eventId);
-        const currentSoldForDate = await Seat.countDocuments({ eventId, bookingDate: selectedDate });
+        const currentSoldForDate = await Seat.countDocuments({ eventId, bookingDate: selectedDate, timeSlot });
 
         if (currentSoldForDate + requestedQty > event.capacity) {
-            return res.status(400).json({ success: false, message: "Not enough tickets available for this date." });
+            return res.status(400).json({ success: false, message: "Not enough tickets available for this time slot." });
         }
 
         const generalTickets = [];
@@ -252,6 +269,7 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
                 eventId: event._id,
                 seatId: `GA-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${i+1}`, 
                 bookingDate: selectedDate,
+                timeSlot: timeSlot,
                 status: 'Booked',
                 bookedBy: req.session.username,
                 userId: req.session.userId 
@@ -262,10 +280,10 @@ app.post('/api/events/book-general', verifyActiveUser, async (req, res) => {
         event.ticketsSold += requestedQty;
         await event.save();
 
-        io.emit('seatUpdate', { eventId: eventId, date: selectedDate });
+        io.emit('seatUpdate', { eventId: eventId, date: selectedDate, timeSlot });
         io.emit('dashboardUpdate'); 
 
-        res.json({ success: true, message: `Successfully booked ${requestedQty} ticket(s) for ${selectedDate}!` });
+        res.json({ success: true, message: `Successfully booked ${requestedQty} ticket(s) for ${selectedDate} at ${timeSlot}!` });
     } catch (err) { res.status(500).json({ success: false, message: "Booking error." }); }
 });
 
@@ -281,7 +299,7 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
                 eventId: seat.eventId._id, 
                 eventTitle: seat.eventId.title,
                 bookingDate: seat.bookingDate, 
-                startDate: seat.eventId.startDate,
+                timeSlot: seat.timeSlot,
                 location: seat.eventId.location,
                 eventType: seat.eventId.eventType,
                 price: seat.eventId.price || 0,    
@@ -293,19 +311,19 @@ app.get('/api/my-tickets', verifyActiveUser, async (req, res) => {
 });
 
 app.post('/api/events/cancel-booking', verifyActiveUser, async (req, res) => {
-    const { eventId, seatId, bookingDate } = req.body;
+    const { eventId, seatId, bookingDate, timeSlot } = req.body;
     try {
         const event = await Event.findById(eventId);
         
         const result = await Seat.findOneAndDelete({ 
-            eventId, seatId, bookingDate, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
+            eventId, seatId, bookingDate, timeSlot, $or: [{ userId: req.session.userId }, { bookedBy: req.session.username }]
         });
 
         if (result) {
             event.ticketsSold = Math.max(0, event.ticketsSold - 1);
             await event.save();
             
-            io.emit('seatUpdate', { eventId: eventId, date: bookingDate });
+            io.emit('seatUpdate', { eventId: eventId, date: bookingDate, timeSlot });
             io.emit('dashboardUpdate');
             res.json({ success: true, message: "Booking cancelled successfully." });
         } else {
@@ -343,8 +361,11 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
-        const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl } = req.body;
-        await Event.create({ title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl });
+        const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl, timeSlots } = req.body;
+        // Parse timeSlots string into an array if provided
+        let parsedTimeSlots = timeSlots ? timeSlots.split(',').map(s => s.trim()).filter(s => s) : ["12:00 PM"];
+        
+        await Event.create({ title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl, timeSlots: parsedTimeSlots });
         io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
     } catch (err) { 
@@ -354,7 +375,15 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
 });
 
 app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
-    try { await Event.findByIdAndUpdate(req.params.id, req.body); io.emit('eventUpdate'); io.emit('dashboardUpdate'); res.json({ success: true, message: "Event updated successfully." }); }
+    try { 
+        let updateData = { ...req.body };
+        if (updateData.timeSlots && typeof updateData.timeSlots === 'string') {
+            updateData.timeSlots = updateData.timeSlots.split(',').map(s => s.trim()).filter(s => s);
+        }
+        await Event.findByIdAndUpdate(req.params.id, updateData); 
+        io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
+        res.json({ success: true, message: "Event updated successfully." }); 
+    }
     catch (err) { res.status(500).json({ success: false, message: "Error updating event." }); }
 });
 
@@ -376,7 +405,8 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
             userSeats.forEach(seat => { eventCounts[seat.eventId] = (eventCounts[seat.eventId] || 0) + 1; });
             for (const eventId in eventCounts) { await Event.findByIdAndUpdate(eventId, { $inc: { ticketsSold: -eventCounts[eventId] } }); }
             await Seat.deleteMany({ userId: userId });
-            for (const eventId in eventCounts) { io.emit('seatUpdate', { eventId: eventId }); }
+            // Cannot reliably emit timeSlot here without looping, but general event update is fine
+            for (const eventId in eventCounts) { io.emit('eventUpdate'); }
         }
         await User.findByIdAndDelete(userId); 
         io.emit('dashboardUpdate'); io.emit('eventUpdate'); 
