@@ -168,7 +168,7 @@ app.get('/api/events', async (req, res) => {
     res.json(events);
 });
 
-// 🚨 NEW: Fetch availability for ALL time slots for a specific date
+// 🚨 FIXED: This is the missing API route your frontend was begging for!
 app.get('/api/events/:eventId/timeslots-availability', async (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({error: "Date required"});
@@ -176,7 +176,6 @@ app.get('/api/events/:eventId/timeslots-availability', async (req, res) => {
     const event = await Event.findById(req.params.eventId).select('capacity timeSlots').lean();
     if (!event) return res.status(404).json({error: "Event not found"});
 
-    // Calculate availability for each slot
     const slotsData = [];
     for (let slot of event.timeSlots) {
         const soldForSlot = await Seat.countDocuments({ eventId: req.params.eventId, bookingDate: date, timeSlot: slot });
@@ -187,13 +186,13 @@ app.get('/api/events/:eventId/timeslots-availability', async (req, res) => {
             available: event.capacity - soldForSlot
         });
     }
-    
     res.json(slotsData);
 });
 
 app.get('/api/events/:eventId/availability', async (req, res) => {
     const { date, timeSlot } = req.query;
     if (!date || !timeSlot) return res.status(400).json({error: "Date and TimeSlot required"});
+    
     const event = await Event.findById(req.params.eventId).select('capacity').lean();
     if (!event) return res.status(404).json({error: "Event not found"});
     
@@ -362,14 +361,13 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
         const { title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl, timeSlots } = req.body;
-        // Parse timeSlots string into an array if provided
+        // 🚨 FIXED: Parse timeSlots string into an array before saving to DB
         let parsedTimeSlots = timeSlots ? timeSlots.split(',').map(s => s.trim()).filter(s => s) : ["12:00 PM"];
         
         await Event.create({ title, ageLimit, eventType, category, capacity, price, startDate, endDate, location, description, imageUrl, timeSlots: parsedTimeSlots });
         io.emit('eventUpdate'); io.emit('dashboardUpdate'); 
         res.json({ success: true, message: "Event created successfully!" });
     } catch (err) { 
-        console.error("Backend Event Creation Error:", err); 
         res.status(500).json({ success: false, message: "Error creating event." }); 
     }
 });
@@ -377,6 +375,7 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
 app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try { 
         let updateData = { ...req.body };
+        // 🚨 FIXED: Parse timeSlots string into an array before updating DB
         if (updateData.timeSlots && typeof updateData.timeSlots === 'string') {
             updateData.timeSlots = updateData.timeSlots.split(',').map(s => s.trim()).filter(s => s);
         }
@@ -405,7 +404,6 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
             userSeats.forEach(seat => { eventCounts[seat.eventId] = (eventCounts[seat.eventId] || 0) + 1; });
             for (const eventId in eventCounts) { await Event.findByIdAndUpdate(eventId, { $inc: { ticketsSold: -eventCounts[eventId] } }); }
             await Seat.deleteMany({ userId: userId });
-            // Cannot reliably emit timeSlot here without looping, but general event update is fine
             for (const eventId in eventCounts) { io.emit('eventUpdate'); }
         }
         await User.findByIdAndDelete(userId); 
