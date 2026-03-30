@@ -8,10 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=V7">
+    <link rel="stylesheet" href="css/style.css?v=V10">
 </head>
 
-<body class="d-flex flex-column min-vh-100">
+<body class="bg-dark text-white d-flex flex-column min-vh-100">
 
 <header>
     <nav class="navbar navbar-expand-lg border-bottom position-relative py-3" style="border-color: #262626 !important;">
@@ -113,20 +113,24 @@
             <div class="col-lg-8">
                 
                 <div class="card border-0 p-4 mb-4">
-                    <h2 id="selected-event-title" class="fw-bold mb-3"></h2>
+                    <h2 id="selected-event-title" class="fw-bold mb-3 text-white"></h2>
                     <div class="d-flex gap-4 flex-wrap mt-2" id="selected-event-details-bar"></div>
                 </div>
                 
                 <div id="date-selection-container" class="card border-0 p-4 mb-4 d-none w-100">
-                    <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size: 12px; letter-spacing: 1px;">Select Date</h6>
+                    <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size: 12px; letter-spacing: 1px;">Select Date & Time</h6>
+                    
                     <div id="date-pills" class="district-date-container m-0 border-0"></div>
+                    
+                    <div id="time-slot-container" class="time-slot-container mt-4 mb-2"></div>
+
                 </div>
 
                 <div id="seated-view" class="card border-0 p-3 p-lg-4 d-none">
-                    <h5 class="fw-bold mb-4">Select Your Seats</h5>
+                    <h5 class="fw-bold mb-4 text-white">Select Your Seats</h5>
                     
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
-                        <p class="text-muted small mb-3 mb-md-0">Click on available seats to select them. You can select up to 10 seats.</p>
+                        <p class="text-muted small mb-3 mb-md-0">Click on available seats to select them.</p>
                         <div class="d-flex align-items-center gap-3 flex-wrap">
                             <div class="d-flex align-items-center gap-2"><div class="bms-seat available m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Available</span></div>
                             <div class="d-flex align-items-center gap-2"><div class="bms-seat selected m-0" style="width: 24px; height: 24px; pointer-events: none;"></div><span class="small text-muted fw-bold">Selected</span></div>
@@ -145,7 +149,7 @@
                 </div>
 
                 <div id="general-view" class="card border-0 p-4 d-none">
-                    <h5 class="fw-bold mb-4">General Admission</h5>
+                    <h5 class="fw-bold mb-4 text-white">General Admission</h5>
                     <div class="d-flex justify-content-between mb-4 pb-3 border-bottom border-secondary">
                         <span class="text-muted fw-bold">Currently Available:</span>
                         <span id="tickets-left" class="fw-bold text-success fs-5">0</span>
@@ -160,7 +164,7 @@
             <div class="col-lg-4">
                 <div class="order-summary shadow-lg">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="fw-bold m-0">Order Summary</h5>
+                        <h5 class="fw-bold m-0 text-white">Order Summary</h5>
                     </div>
                     
                     <div id="summary-seats-container" class="mb-4 d-none">
@@ -170,13 +174,13 @@
                     
                     <div class="d-flex justify-content-between mb-4">
                         <span class="text-muted small" id="summary-calc-text">Tickets (0)</span>
-                        <span class="fw-bold small">₹<span id="summary-subtotal">0</span></span>
+                        <span class="fw-bold small text-white">₹<span id="summary-subtotal">0</span></span>
                     </div>
                     
                     <hr class="border-secondary my-3" style="opacity: 0.5;">
                     
                     <div class="d-flex justify-content-between mb-4 align-items-center">
-                        <span class="fs-5 fw-bold">Total</span>
+                        <span class="fs-5 fw-bold text-white">Total</span>
                         <span class="fs-4 fw-bold text-danger">₹<span id="summary-total">0</span></span>
                     </div>
                     
@@ -219,7 +223,7 @@
 
     <section id="tickets-section" class="row justify-content-center d-none mt-4 mt-lg-5 text-start">
         <div class="col-md-9">
-            <h3 class="fw-bold mb-4">Recent Bookings</h3>
+            <h3 class="fw-bold mb-4 text-white">Recent Bookings</h3>
             <div id="my-tickets-container" class="d-flex flex-column gap-3"></div>
         </div>
     </section>
@@ -233,7 +237,7 @@
         <div class="col-md-7">
             <div class="card p-4 border-0">
                 <div class="card-body">
-                    <h3 class="mb-4 fw-bold">Profile Settings</h3>
+                    <h3 class="mb-4 fw-bold text-white">Profile Settings</h3>
                     <div id="profile-alert" class="alert d-none text-center fw-bold"></div>
                     <form id="profile-form">
                         <div class="mb-3"><label class="form-label">Username</label><input type="text" id="profile-username" class="form-control" required></div>
@@ -253,6 +257,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
-<script src="js/app.js?v=V8" defer></script>
+<script src="js/app.js?v=V10" defer></script>
 </body>
 </html>
