@@ -4,10 +4,7 @@ const seatSchema = new mongoose.Schema({
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
     seatId: { type: String, required: true }, 
     bookingDate: { type: String, required: true }, 
-    
-    // 🚨 NEW: Seats are now bound to a specific time slot
-    timeSlot: { type: String, required: true }, 
-    
+    timeSlot: { type: String, required: true }, // 🚨 NEW: Seats now bound to a specific time
     status: { type: String, enum: ['Available', 'Booked'], default: 'Available' },
     bookedBy: { type: String, default: null },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null } 
