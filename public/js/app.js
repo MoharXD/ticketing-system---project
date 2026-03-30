@@ -663,7 +663,6 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             const totalAmount = g.price * g.count;
             const dateStr = new Date(g.date).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
             
-            // 🚨 OPTIMIZATION 1: Truncate seat pills if there are too many to prevent DOM freezing
             let seatPills = '';
             if (g.seats.length > 15) {
                 seatPills = g.seats.slice(0, 15).map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ') +
@@ -712,24 +711,18 @@ safeBind('nav-bookings-link', 'click', async (e) => {
             </div>`
         }).join('');
 
-        // 🚨 OPTIMIZATION 2: Lazy Load QR Codes to completely stop Main Thread Blocking
         setTimeout(() => {
             const qrObserver = new IntersectionObserver((entries, observer) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         const el = entry.target;
                         if (el.innerHTML === "") {
-                            new QRCode(el, { 
-                                text: el.getAttribute('data-ref'), 
-                                width: 94, height: 94, 
-                                colorDark: "#000000", colorLight: "#ffffff", 
-                                correctLevel: QRCode.CorrectLevel.L 
-                            });
+                            new QRCode(el, { text: el.getAttribute('data-ref'), width: 94, height: 94, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
                         }
-                        observer.unobserve(el); // Stop observing once it's drawn
+                        observer.unobserve(el); 
                     }
                 });
-            }, { rootMargin: "100px" }); // Start drawing 100px before it enters the screen
+            }, { rootMargin: "100px" }); 
 
             document.querySelectorAll('.qr-code-target').forEach(el => qrObserver.observe(el));
         }, 50);
@@ -772,7 +765,7 @@ function showTicketDetail(ticketData) {
     const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
 
     container.innerHTML = `
-    <div class="ticket-detail-wrapper shadow-lg">
+    <div class="ticket-detail-wrapper shadow-lg" id="pdf-target-wrapper">
         <div class="ticket-detail-header">
             <div><div style="font-size: 13px; opacity: 0.9; margin-bottom: 2px;">Booking ID</div><h4 class="mb-0 fw-bold">${ticketData.bookingRef}</h4></div>
             <span class="badge bg-white text-danger px-4 py-2 border-0" style="font-size: 13px; font-weight: 800; letter-spacing: 0.5px;">CONFIRMED</span>
@@ -796,8 +789,9 @@ function showTicketDetail(ticketData) {
             </div>
         </div>
     </div>
+    
     <div class="d-flex justify-content-center gap-3 mb-5 pb-5 mt-4">
-        <button id="detail-view-bookings-btn" class="btn btn-danger px-4 py-2 fw-bold">View All Bookings</button>
+        <button id="download-pdf-btn" class="btn btn-outline-secondary text-white border-dark px-4 py-2 fw-bold d-flex align-items-center gap-2"><span class="fs-5">📥</span> Download PDF</button>
         <button id="detail-back-home-btn" class="btn btn-dark px-4 py-2 fw-bold border-secondary d-flex align-items-center gap-2"><span>🏠</span> Back to Home</button>
     </div>`;
 
@@ -809,7 +803,33 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
-    safeBind('detail-view-bookings-btn', 'click', () => { document.getElementById('nav-bookings-link')?.click(); });
+    // 🚨 NEW: PDF Generation Logic 
+    safeBind('download-pdf-btn', 'click', () => {
+        if (typeof html2pdf === 'undefined') {
+            alert("PDF engine is still loading. Please wait a second and try again.");
+            return;
+        }
+
+        const btn = document.getElementById('download-pdf-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ Generating PDF...';
+        btn.disabled = true;
+
+        const element = document.getElementById('pdf-target-wrapper');
+        const opt = {
+            margin:       0.2,
+            filename:     `TicketHub_${ticketData.bookingRef}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#121212' },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+
     safeBind('detail-back-home-btn', 'click', () => { document.getElementById('home-logo')?.click(); });
 }
 
