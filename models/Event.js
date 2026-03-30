@@ -13,7 +13,7 @@ const eventSchema = new mongoose.Schema({
     price: { type: Number, required: true, default: 0 }, 
     imageUrl: { type: String, default: '' }, 
     ticketsSold: { type: Number, default: 0 }, 
-    timeSlots: [{ type: String }], // 🚨 NEW: Array of time slots (e.g. ["09:40 AM", "12:50 PM"])
+    timeSlots: [{ type: String }], // 🚨 FIXED: Added Time Slots Array
     createdAt: { type: Date, default: Date.now }
 });
 
