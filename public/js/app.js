@@ -803,7 +803,6 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
-    // 🚨 NEW: PDF Generation Logic 
     safeBind('download-pdf-btn', 'click', () => {
         if (typeof html2pdf === 'undefined') {
             alert("PDF engine is still loading. Please wait a second and try again.");
@@ -879,6 +878,29 @@ safeBind('profile-form', 'submit', async (e) => {
 safeBind('profile-dob', 'change', (e) => {
     const ageInput = document.getElementById('profile-age');
     if(ageInput && e.target.value) ageInput.value = Math.abs(new Date(Date.now() - new Date(e.target.value).getTime()).getUTCFullYear() - 1970);
+});
+
+// ==========================================
+// 📱 MOBILE NAVBAR AUTO-CLOSE FIX
+// ==========================================
+document.addEventListener('click', (event) => {
+    const mobileNavbar = document.getElementById('mobileNavbar');
+    const toggler = document.querySelector('.navbar-toggler');
+    
+    // If the menu is open and the click was outside both the menu and the toggler button
+    if (mobileNavbar && mobileNavbar.classList.contains('show')) {
+        if (!mobileNavbar.contains(event.target) && !toggler.contains(event.target)) {
+            // Use Bootstrap's native collapse API to hide it smoothly
+            if (typeof bootstrap !== 'undefined') {
+                const bsCollapse = bootstrap.Collapse.getInstance(mobileNavbar);
+                if (bsCollapse) {
+                    bsCollapse.hide();
+                } else {
+                    mobileNavbar.classList.remove('show');
+                }
+            }
+        }
+    }
 });
 
 (async function initializeApp() {
