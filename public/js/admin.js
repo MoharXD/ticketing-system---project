@@ -4,8 +4,12 @@ const formTitle = document.getElementById('form-title');
 const submitBtn = document.getElementById('event-submit-btn');
 const cancelBtn = document.getElementById('event-cancel-btn');
 
-// 🚨 NEW: Global variable to hold our Chart instance
+// Global variable to hold our Chart instance
 let revenueChartInstance = null;
+
+// 🎨 Set Global Chart.js Typography to match the TicketHub Aesthetic
+Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+Chart.defaults.color = '#a1a1aa';
 
 window.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch(`/api/check-session?t=${Date.now()}`);
@@ -67,7 +71,6 @@ async function loadAnalytics() {
             document.getElementById('stat-events').innerText = data.totalEvents.toLocaleString();
             document.getElementById('stat-users').innerText = data.totalUsers.toLocaleString();
 
-            // 🚨 NEW: Draw/Update the Chart with the live event stats
             renderChart(data.eventStats);
         }
     } catch (err) {
@@ -75,22 +78,24 @@ async function loadAnalytics() {
     }
 }
 
-// 🚨 NEW: Function to render the Chart.js Graph
+// 🚨 PREMIUM CHART UI OVERHAUL
 function renderChart(eventStats) {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
+    const canvas = document.getElementById('revenueChart');
+    const ctx = canvas.getContext('2d');
 
-    // If a chart already exists, we MUST destroy it before drawing a new one, 
-    // otherwise hovering over it will cause the old data to glitch through.
     if (revenueChartInstance) {
         revenueChartInstance.destroy();
     }
 
-    // Only show top 10 events to prevent the chart from getting squished
     const topEvents = eventStats.slice(0, 10);
-    
-    // Truncate long titles so they fit nicely on the X-axis
     const labels = topEvents.map(e => e.title.length > 15 ? e.title.substring(0, 15) + '...' : e.title);
     const revenues = topEvents.map(e => e.revenue);
+
+    // 🎨 Create a sleek vertical gradient for the bars
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.clientHeight);
+    gradient.addColorStop(0, 'rgba(239, 68, 68, 1)');     // Solid Brand Red
+    gradient.addColorStop(0.8, 'rgba(239, 68, 68, 0.1)'); // Faded Red
+    gradient.addColorStop(1, 'rgba(239, 68, 68, 0)');     // Transparent at bottom
 
     revenueChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -99,11 +104,13 @@ function renderChart(eventStats) {
             datasets: [{
                 label: 'Gross Revenue (₹)',
                 data: revenues,
-                backgroundColor: 'rgba(239, 68, 68, 0.8)', // Matches your --brand-primary
+                backgroundColor: gradient,
                 borderColor: '#ef4444',
-                borderWidth: 1,
-                borderRadius: 4, // Rounded corners on the bars
-                hoverBackgroundColor: '#10b981' // Turns green when hovered
+                borderWidth: { top: 2, right: 2, left: 2, bottom: 0 },
+                borderRadius: 6, // Smooth rounded tops
+                borderSkipped: 'bottom', // Keeps the bottom flat on the axis
+                maxBarThickness: 45, // 🚨 STOPS THE CHUNKY BRICK EFFECT
+                hoverBackgroundColor: '#ef4444', // Solid bright red on hover
             }]
         },
         options: {
@@ -112,16 +119,18 @@ function renderChart(eventStats) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#121212',
-                    titleColor: '#fff',
-                    bodyColor: '#10b981',
-                    bodyFont: { weight: 'bold', size: 14 },
-                    padding: 12,
-                    borderColor: '#262626',
+                    backgroundColor: 'rgba(18, 18, 18, 0.95)', // Glassy dark background
+                    titleColor: '#a1a1aa', // Muted title
+                    bodyColor: '#ffffff',  // White text
+                    bodyFont: { weight: 'bold', size: 15 },
+                    padding: 14,
+                    borderColor: '#3f3f46',
                     borderWidth: 1,
+                    displayColors: false, // Hides the little color square in the tooltip
+                    cornerRadius: 8,
                     callbacks: {
                         label: function(context) {
-                            return ' ₹' + context.parsed.y.toLocaleString();
+                            return 'Revenue: ₹' + context.parsed.y.toLocaleString();
                         }
                     }
                 }
@@ -129,12 +138,28 @@ function renderChart(eventStats) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#a1a1aa', callback: function(value) { return '₹' + value; } } 
+                    border: { display: false }, // Hides the heavy solid axis line
+                    grid: { 
+                        color: 'rgba(255, 255, 255, 0.05)', 
+                        borderDash: [5, 5] // Sleek dotted grid lines
+                    },
+                    ticks: { 
+                        color: '#a1a1aa', 
+                        padding: 10,
+                        font: { size: 11, weight: '600' },
+                        callback: function(value) { return '₹' + value; } 
+                    } 
                 },
                 x: {
-                    grid: { display: false },
-                    ticks: { color: '#a1a1aa', maxRotation: 45, minRotation: 45 }
+                    border: { display: false },
+                    grid: { display: false }, // Removes vertical grid lines entirely
+                    ticks: { 
+                        color: '#a1a1aa', 
+                        padding: 10, 
+                        maxRotation: 45, 
+                        minRotation: 45,
+                        font: { size: 11, weight: '600' }
+                    }
                 }
             }
         }
