@@ -5,7 +5,6 @@ const submitBtn = document.getElementById('event-submit-btn');
 const cancelBtn = document.getElementById('event-cancel-btn');
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // 🚨 FIX: Cache buster appended to ensure fresh session checks
     const res = await fetch(`/api/check-session?t=${Date.now()}`);
     const data = await res.json();
     
@@ -56,7 +55,6 @@ document.getElementById('event-poster-file').addEventListener('change', function
 
 async function loadAnalytics() {
     try {
-        // 🚨 FIX: Cache buster appended to load instantly
         const res = await fetch(`/api/admin/analytics?t=${Date.now()}`);
         const data = await res.json();
         
@@ -73,7 +71,6 @@ async function loadAnalytics() {
 
 async function loadEvents() {
     try {
-        // 🚨 FIX: Cache buster appended to fetch new events bypassing disk cache
         const res = await fetch(`/api/admin/events?t=${Date.now()}`);
         const events = await res.json();
         const container = document.getElementById('event-list-container');
@@ -89,9 +86,10 @@ async function loadEvents() {
             const timeStr = d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
             
             const sold = e.ticketsSold || 0;
-            const capacity = e.capacity || 0;
+            // Note: capacity here is per slot, so this is just a rough estimate visual for the admin panel
+            const capacity = e.capacity || 0; 
             const available = Math.max(0, capacity - sold);
-            const percent = capacity > 0 ? Math.round((sold / capacity) * 100) : 0;
+            const percent = capacity > 0 ? Math.min(100, Math.round((sold / capacity) * 100)) : 0;
             
             let imgHtml = '';
             if (e.imageUrl) {
@@ -119,6 +117,9 @@ async function loadEvents() {
             
             let catBadge = e.category ? `<span class="badge ${catColor} ms-3 rounded-pill" style="font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px;">${e.category}</span>` : '';
 
+            // Formatting time slots for display
+            let slotsDisplay = e.timeSlots && e.timeSlots.length > 0 ? e.timeSlots.join(', ') : 'No slots';
+
             return `
             <div class="admin-event-row rounded mb-2">
                 
@@ -130,18 +131,14 @@ async function loadEvents() {
                             <span class="badge ${badgeClass} rounded-pill" style="font-size: 10px; padding: 4px 8px; letter-spacing: 0.5px;">${e.eventType}</span>
                         </div>
                         <div class="text-muted mb-1" style="font-size: 13px;">${e.location}</div>
-                        <div class="text-muted" style="font-size: 13px;">${dateStr} • ${timeStr}</div>
+                        <div class="text-muted" style="font-size: 13px;">${dateStr} | Slots: <span class="text-info">${slotsDisplay}</span></div>
                     </div>
                 </div>
                 
                 <div class="d-flex align-items-center justify-content-end gap-4 pe-4 border-end border-secondary border-opacity-25" style="min-width: 250px;">
                     <div class="admin-event-stat">
                         <span class="admin-stat-num text-white">${sold}</span>
-                        <span class="admin-stat-label">Sold</span>
-                    </div>
-                    <div class="admin-event-stat">
-                        <span class="admin-stat-num text-success">${available}</span>
-                        <span class="admin-stat-label">Available</span>
+                        <span class="admin-stat-label">Sold (Total)</span>
                     </div>
                     <div class="admin-event-stat" style="width: 50px;">
                         <span class="fw-bold text-white mb-1" style="font-size: 11px;">${percent}%</span>
@@ -172,7 +169,6 @@ async function loadEvents() {
 
 async function loadUsers() {
     try {
-        // 🚨 FIX: Cache buster appended to force real-time user refresh
         const res = await fetch(`/api/admin/users?t=${Date.now()}`);
         const users = await res.json();
         const tbody = document.getElementById('user-table-body');
@@ -215,6 +211,7 @@ eventForm.addEventListener('submit', async (e) => {
         startDate: startInput ? new Date(startInput).toISOString() : null,
         endDate: endInput ? new Date(endInput).toISOString() : null,
         location: document.getElementById('event-location').value,
+        timeSlots: document.getElementById('event-timeslots').value, // 🚨 NEW: Capture time slots
         description: document.getElementById('event-description').value,
         imageUrl: document.getElementById('event-image').value
     };
@@ -267,8 +264,11 @@ window.editEvent = function(eventData) {
     document.getElementById('event-capacity').value = eventData.capacity;
     document.getElementById('event-price').value = eventData.price || 0;
     document.getElementById('event-location').value = eventData.location;
-    document.getElementById('event-description').value = eventData.description || '';
     
+    // 🚨 NEW: Populate time slots
+    document.getElementById('event-timeslots').value = eventData.timeSlots && eventData.timeSlots.length > 0 ? eventData.timeSlots.join(', ') : '';
+    
+    document.getElementById('event-description').value = eventData.description || '';
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
     document.getElementById('event-poster-file').value = ''; 
 
@@ -299,6 +299,7 @@ window.resetEventForm = function() {
     document.getElementById('event-image').value = ''; 
     document.getElementById('event-poster-file').value = ''; 
     document.getElementById('event-category').value = 'Movie'; 
+    document.getElementById('event-timeslots').value = ''; // 🚨 NEW: Clear time slots
     
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
