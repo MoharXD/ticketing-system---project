@@ -4,6 +4,9 @@ const formTitle = document.getElementById('form-title');
 const submitBtn = document.getElementById('event-submit-btn');
 const cancelBtn = document.getElementById('event-cancel-btn');
 
+// 🚨 NEW: Global variable to hold our Chart instance
+let revenueChartInstance = null;
+
 window.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch(`/api/check-session?t=${Date.now()}`);
     const data = await res.json();
@@ -63,10 +66,79 @@ async function loadAnalytics() {
             document.getElementById('stat-tickets').innerText = data.totalTicketsSold.toLocaleString();
             document.getElementById('stat-events').innerText = data.totalEvents.toLocaleString();
             document.getElementById('stat-users').innerText = data.totalUsers.toLocaleString();
+
+            // 🚨 NEW: Draw/Update the Chart with the live event stats
+            renderChart(data.eventStats);
         }
     } catch (err) {
         console.error("Error loading analytics:", err);
     }
+}
+
+// 🚨 NEW: Function to render the Chart.js Graph
+function renderChart(eventStats) {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+
+    // If a chart already exists, we MUST destroy it before drawing a new one, 
+    // otherwise hovering over it will cause the old data to glitch through.
+    if (revenueChartInstance) {
+        revenueChartInstance.destroy();
+    }
+
+    // Only show top 10 events to prevent the chart from getting squished
+    const topEvents = eventStats.slice(0, 10);
+    
+    // Truncate long titles so they fit nicely on the X-axis
+    const labels = topEvents.map(e => e.title.length > 15 ? e.title.substring(0, 15) + '...' : e.title);
+    const revenues = topEvents.map(e => e.revenue);
+
+    revenueChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Gross Revenue (₹)',
+                data: revenues,
+                backgroundColor: 'rgba(239, 68, 68, 0.8)', // Matches your --brand-primary
+                borderColor: '#ef4444',
+                borderWidth: 1,
+                borderRadius: 4, // Rounded corners on the bars
+                hoverBackgroundColor: '#10b981' // Turns green when hovered
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#121212',
+                    titleColor: '#fff',
+                    bodyColor: '#10b981',
+                    bodyFont: { weight: 'bold', size: 14 },
+                    padding: 12,
+                    borderColor: '#262626',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            return ' ₹' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#a1a1aa', callback: function(value) { return '₹' + value; } } 
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#a1a1aa', maxRotation: 45, minRotation: 45 }
+                }
+            }
+        }
+    });
 }
 
 async function loadEvents() {
@@ -116,7 +188,6 @@ async function loadEvents() {
             
             let catBadge = e.category ? `<span class="badge ${catColor} ms-3 rounded-pill" style="font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px;">${e.category}</span>` : '';
 
-            // 🚨 FIXED: Show time slots in admin event list
             let slotsDisplay = e.timeSlots && e.timeSlots.length > 0 ? e.timeSlots.join(', ') : 'No slots';
 
             return `
@@ -210,7 +281,7 @@ eventForm.addEventListener('submit', async (e) => {
         startDate: startInput ? new Date(startInput).toISOString() : null,
         endDate: endInput ? new Date(endInput).toISOString() : null,
         location: document.getElementById('event-location').value,
-        timeSlots: document.getElementById('event-timeslots').value, // 🚨 FIXED: Capture time slots
+        timeSlots: document.getElementById('event-timeslots').value, 
         description: document.getElementById('event-description').value,
         imageUrl: document.getElementById('event-image').value
     };
@@ -263,10 +334,7 @@ window.editEvent = function(eventData) {
     document.getElementById('event-capacity').value = eventData.capacity;
     document.getElementById('event-price').value = eventData.price || 0;
     document.getElementById('event-location').value = eventData.location;
-    
-    // 🚨 FIXED: Populate time slots
     document.getElementById('event-timeslots').value = eventData.timeSlots && eventData.timeSlots.length > 0 ? eventData.timeSlots.join(', ') : '';
-    
     document.getElementById('event-description').value = eventData.description || '';
     document.getElementById('event-image').value = eventData.imageUrl || ''; 
     document.getElementById('event-poster-file').value = ''; 
@@ -298,7 +366,7 @@ window.resetEventForm = function() {
     document.getElementById('event-image').value = ''; 
     document.getElementById('event-poster-file').value = ''; 
     document.getElementById('event-category').value = 'Movie'; 
-    document.getElementById('event-timeslots').value = ''; // 🚨 FIXED: Clear time slots
+    document.getElementById('event-timeslots').value = ''; 
     
     formTitle.innerText = "Create New Event";
     submitBtn.innerText = "Save Event";
