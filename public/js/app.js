@@ -18,7 +18,7 @@ let currentCategoryFilter = 'All';
 let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
-let cancelModalInstance = null; // 🚨 Global variable for the cancellation modal
+let cancelModalInstance = null; // Global variable for the cancellation modal
 
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
@@ -767,7 +767,7 @@ safeBind('my-tickets-container', 'click', async (e) => {
     }
 });
 
-// 🚨 NEW: Handle Select All / Deselect All logic
+// Handle Select All / Deselect All logic
 safeBind('select-all-cancel-btn', 'click', (e) => {
     const btn = e.target;
     const pills = document.querySelectorAll('.cancel-seat-pill');
@@ -791,7 +791,7 @@ safeBind('cancel-seat-list', 'click', (e) => {
     if (pill) {
         pill.classList.toggle('selected');
         
-        // 🚨 NEW: Sync the "Select All" button automatically
+        // Sync the "Select All" button automatically
         const allPills = document.querySelectorAll('.cancel-seat-pill');
         const selectedPills = document.querySelectorAll('.cancel-seat-pill.selected');
         const selectAllBtn = document.getElementById('select-all-cancel-btn');
@@ -845,6 +845,7 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
 });
 
 
+// 🚨 NEW: PREMIUM TICKET RECEIPT LOGIC
 function showTicketDetail(ticketData) {
     switchView('ticket-detail-section');
     const container = document.getElementById('ticket-detail-container');
@@ -854,32 +855,74 @@ function showTicketDetail(ticketData) {
     const totalAmount = ticketData.price * ticketData.count;
     const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
     
-    const usernameBadge = document.getElementById('username-badge');
-    const username = usernameBadge ? usernameBadge.innerText : 'User';
-    const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
-
+    // Build the new perforated ticket receipt UI
     container.innerHTML = `
-    <div class="ticket-detail-wrapper shadow-lg" id="pdf-target-wrapper">
-        <div class="ticket-detail-header">
-            <div><div style="font-size: 13px; opacity: 0.9; margin-bottom: 2px;">Booking ID</div><h4 class="mb-0 fw-bold">${ticketData.bookingRef}</h4></div>
-            <span class="badge bg-white text-danger px-4 py-2 border-0" style="font-size: 13px; font-weight: 800; letter-spacing: 0.5px;">CONFIRMED</span>
-        </div>
-        <div class="ticket-detail-body d-flex flex-column flex-md-row gap-5 align-items-center align-items-md-start">
-            <div class="d-flex flex-column align-items-center">
-                <div class="ticket-detail-qr-container mb-3" style="width: 150px; height: 150px;"><div id="full-ticket-qr" style="width: 100%; height: 100%;"></div></div>
-                <span class="text-muted small">Scan at venue entry</span>
+    <div class="ticket-receipt-wrapper" id="pdf-target-wrapper">
+        <div class="ticket-receipt-main">
+            <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+                <div>
+                    <h2 class="fw-bold text-white mb-2" style="letter-spacing: -0.5px;">${ticketData.eventTitle}</h2>
+                    <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); padding: 6px 12px; font-weight: 700; letter-spacing: 1px;">✓ BOOKING CONFIRMED</span>
+                </div>
             </div>
-            <div class="flex-grow-1 w-100">
-                <h3 class="fw-bold text-white mb-4">${ticketData.eventTitle}</h3>
-                <div class="text-muted mb-4 d-flex flex-column gap-3" style="font-size: 15px;">
-                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">📅</span> ${dateStr}</div>
-                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">🕒</span> ${ticketData.time}</div>
-                    <div class="d-flex align-items-center"><span class="me-3 text-danger fs-5">📍</span> ${ticketData.location}</div>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-sm-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="icon-circle">📅</div>
+                        <div>
+                            <div class="small text-muted text-uppercase fw-bold" style="font-size: 11px; letter-spacing: 1px;">Date</div>
+                            <div class="fw-bold text-white fs-6">${dateStr}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-4"><div class="text-muted mb-2 small">Seats</div><div class="d-flex flex-wrap gap-2">${seatPills}</div></div>
-                <div class="d-flex justify-content-between align-items-center mt-5 p-4 rounded" style="background-color: rgba(255,255,255,0.03);">
-                    <span class="text-muted">Total Paid</span><span class="fw-bold text-danger fs-3">₹${totalAmount.toLocaleString()}</span>
+                <div class="col-sm-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="icon-circle">🕒</div>
+                        <div>
+                            <div class="small text-muted text-uppercase fw-bold" style="font-size: 11px; letter-spacing: 1px;">Time</div>
+                            <div class="fw-bold text-white fs-6">${ticketData.time}</div>
+                        </div>
+                    </div>
                 </div>
+                <div class="col-12">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="icon-circle">📍</div>
+                        <div>
+                            <div class="small text-muted text-uppercase fw-bold" style="font-size: 11px; letter-spacing: 1px;">Venue</div>
+                            <div class="fw-bold text-white fs-6">${ticketData.location}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4 p-3 rounded" style="background-color: #0a0a0a; border: 1px solid #262626;">
+                <div class="text-muted text-uppercase mb-2 fw-bold" style="font-size: 11px; letter-spacing: 1px;">Admit ${ticketData.count} - Selected Seats</div>
+                <div class="d-flex flex-wrap gap-2">${seatPills}</div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary border-opacity-25">
+                <div>
+                    <div class="text-muted text-uppercase fw-bold" style="font-size: 11px; letter-spacing: 1px;">Total Amount Paid</div>
+                    <div class="fw-bold text-danger fs-3">₹${totalAmount.toLocaleString()}</div>
+                </div>
+                <div class="text-end">
+                    <div class="text-muted text-uppercase fw-bold" style="font-size: 11px; letter-spacing: 1px;">Transaction ID</div>
+                    <div class="fw-bold font-monospace text-white">${ticketData.bookingRef}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ticket-receipt-divider"></div>
+        
+        <div class="ticket-receipt-stub">
+            <h5 class="fw-bold text-white mb-4 text-center text-uppercase" style="letter-spacing: 2px;">Entry Pass</h5>
+            <div class="bg-white p-2 rounded mb-3 shadow" style="width: 140px; height: 140px; margin: 0 auto;">
+                <div id="full-ticket-qr" style="width: 100%; height: 100%;"></div>
+            </div>
+            <p class="text-muted small text-center mb-0">Present this code at the venue gate.</p>
+            <div class="mt-4 text-center w-100">
+                <div class="badge bg-transparent border border-secondary text-muted font-monospace w-100 py-2 fs-6">${ticketData.bookingRef}</div>
             </div>
         </div>
     </div>
@@ -893,11 +936,11 @@ function showTicketDetail(ticketData) {
         const qrContainer = document.getElementById('full-ticket-qr');
         if (qrContainer) {
             qrContainer.innerHTML = "";
-            new QRCode(qrContainer, { text: ticketData.bookingRef, width: 126, height: 126, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
+            new QRCode(qrContainer, { text: ticketData.bookingRef, width: 124, height: 124, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
         }
     }, 50);
 
-    // 🚨 NEW: PDF Generation Logic 
+    // PDF Generation Logic updated for a landscape ticket layout
     safeBind('download-pdf-btn', 'click', () => {
         if (typeof html2pdf === 'undefined') {
             alert("PDF engine is still loading. Please wait a second and try again.");
@@ -911,11 +954,11 @@ function showTicketDetail(ticketData) {
 
         const element = document.getElementById('pdf-target-wrapper');
         const opt = {
-            margin:       0.2,
+            margin:       0, // Removed margins for a cleaner digital ticket look
             filename:     `TicketHub_${ticketData.bookingRef}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#121212' },
-            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            image:        { type: 'jpeg', quality: 1.0 },
+            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' }, // Matches --bg-main to hide the cutouts seamlessly
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' } // Landscape makes it fit perfectly horizontally
         };
         
         html2pdf().set(opt).from(element).save().then(() => {
