@@ -731,6 +731,7 @@ safeBind('nav-bookings-link', 'click', async (e) => {
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
+
 // 🚨 MODAL CANCELLATION LOGIC WITH PILLS & SELECT ALL
 safeBind('my-tickets-container', 'click', async (e) => {
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
@@ -745,7 +746,7 @@ safeBind('my-tickets-container', 'click', async (e) => {
 
         const seatListContainer = document.getElementById('cancel-seat-list');
         seatListContainer.innerHTML = idsToCancel.map((idObj) => `
-            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}' >
+            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}'>
                 ${idObj.seatId.replace('GA-', '')}
             </button>
         `).join('');
@@ -835,6 +836,7 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
     }
 });
 
+
 function showTicketDetail(ticketData) {
     switchView('ticket-detail-section');
     const container = document.getElementById('ticket-detail-container');
@@ -844,12 +846,9 @@ function showTicketDetail(ticketData) {
     const totalAmount = ticketData.price * ticketData.count;
     const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
     
-    const usernameBadge = document.getElementById('username-badge');
-    const username = usernameBadge ? usernameBadge.innerText : 'User';
-    const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
-
+    // We keep the beautiful HTML layout for the web view
     container.innerHTML = `
-    <div class="ticket-receipt-wrapper" id="pdf-target-wrapper">
+    <div class="ticket-receipt-wrapper">
         <div class="ticket-receipt-main">
             <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom border-secondary border-opacity-25">
                 <div>
@@ -932,9 +931,9 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
-    // 🚨 FIXED: Added windowWidth to force desktop layout inside the PDF
+    // 🚨 NEW: PURE jsPDF GENERATION LOGIC (NO HTML SCREENSHOTS)
     safeBind('download-pdf-btn', 'click', () => {
-        if (typeof html2pdf === 'undefined') {
+        if (!window.jspdf) {
             alert("PDF engine is still loading. Please wait a second and try again.");
             return;
         }
@@ -944,24 +943,129 @@ function showTicketDetail(ticketData) {
         btn.innerHTML = '⏳ Generating PDF...';
         btn.disabled = true;
 
-        const element = document.getElementById('pdf-target-wrapper');
-        const opt = {
-            margin:       [0.3, 0.3], 
-            filename:     `TicketHub_${ticketData.bookingRef}.pdf`,
-            image:        { type: 'jpeg', quality: 1.0 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                backgroundColor: '#0a0a0a',
-                windowWidth: 1200 // 🚨 This stops the layout from collapsing into mobile view
-            },
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' } 
-        };
-        
-        html2pdf().set(opt).from(element).save().then(() => {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: [200, 100] // Sleek physical ticket size (200x100mm)
+            });
+
+            // TICKET BACKGROUND
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, 200, 100, 'F');
+
+            // LEFT BRAND EDGE (TicketHub Red)
+            doc.setFillColor(239, 68, 68); 
+            doc.rect(0, 0, 8, 100, 'F');
+
+            // TICKET TITLE
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "bold");
+            // Truncate title if too long to prevent wrapping bugs
+            let safeTitle = ticketData.eventTitle;
+            if (safeTitle.length > 25) safeTitle = safeTitle.substring(0, 25) + "...";
+            doc.text(safeTitle, 15, 20);
+
+            // STATUS BADGE
+            doc.setDrawColor(16, 185, 129);
+            doc.setLineWidth(0.5);
+            doc.rect(15, 25, 35, 7);
+            doc.setTextColor(16, 185, 129);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "bold");
+            doc.text("CONFIRMED", 32.5, 30, { align: "center" });
+
+            // DETAILS (DATE / TIME)
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.text("DATE", 15, 45);
+            
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(12);
+            doc.text(dateStr, 15, 51);
+
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(8);
+            doc.text("TIME", 80, 45);
+
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(12);
+            doc.text(ticketData.time, 80, 51);
+
+            // LOCATION
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(8);
+            doc.text("VENUE", 15, 62);
+
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(11);
+            let loc = ticketData.location;
+            if (loc.length > 55) loc = loc.substring(0, 55) + "...";
+            doc.text(loc, 15, 68);
+
+            // SEATS
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(8);
+            doc.text(`ADMIT ${ticketData.count} - SELECTED SEATS`, 15, 79);
+
+            doc.setTextColor(239, 68, 68);
+            doc.setFontSize(12);
+            let seatsStr = ticketData.seats.map(s => s.replace('GA-', '')).join(', ');
+            if (seatsStr.length > 40) seatsStr = seatsStr.substring(0, 40) + "...";
+            doc.text(seatsStr, 15, 85);
+
+            // TOTAL PAID
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(8);
+            doc.text("TOTAL PAID", 135, 79, { align: "right" });
+
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(14);
+            // Native fonts lack the ₹ symbol, so we use INR to keep it pristine
+            doc.text(`INR ${totalAmount.toLocaleString()}`, 135, 86, { align: "right" });
+
+            // PERFORATED DIVIDER LINE
+            doc.setDrawColor(180, 180, 180);
+            doc.setLineWidth(0.5);
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(145, 5, 145, 95);
+
+            // TICKET STUB / QR CODE
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(14);
+            doc.text("ENTRY PASS", 172.5, 20, { align: "center" });
+
+            // Grab QR Canvas image data cleanly from the DOM
+            const qrCanvas = document.querySelector('#full-ticket-qr canvas');
+            if (qrCanvas) {
+                const qrData = qrCanvas.toDataURL('image/png');
+                doc.addImage(qrData, 'PNG', 152.5, 26, 40, 40);
+            }
+
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.text("Scan at venue gate", 172.5, 72, { align: "center" });
+
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text(ticketData.bookingRef, 172.5, 85, { align: "center" });
+
+            // Trigger Download
+            doc.save(`TicketHub_${ticketData.bookingRef}.pdf`);
+
             btn.innerHTML = originalText;
             btn.disabled = false;
-        });
+        } catch (err) {
+            console.error("PDF Generation Error:", err);
+            alert("Error generating PDF ticket.");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     });
 
     safeBind('detail-back-home-btn', 'click', () => { document.getElementById('home-logo')?.click(); });
