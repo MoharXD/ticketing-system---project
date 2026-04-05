@@ -731,7 +731,6 @@ safeBind('nav-bookings-link', 'click', async (e) => {
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
-
 // 🚨 MODAL CANCELLATION LOGIC WITH PILLS & SELECT ALL
 safeBind('my-tickets-container', 'click', async (e) => {
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
@@ -746,7 +745,7 @@ safeBind('my-tickets-container', 'click', async (e) => {
 
         const seatListContainer = document.getElementById('cancel-seat-list');
         seatListContainer.innerHTML = idsToCancel.map((idObj) => `
-            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}'>
+            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}' >
                 ${idObj.seatId.replace('GA-', '')}
             </button>
         `).join('');
@@ -809,7 +808,7 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
         return;
     }
 
-    if (!confirm(`Are you sure you want to permanently cancel these ${selectedPills.length} seat(s)?`)) return;
+    // 🚨 FIXED: Removed the redundant confirm() popup here
 
     const btn = e.target;
     const originalText = btn.innerText;
@@ -836,7 +835,6 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
     }
 });
 
-
 function showTicketDetail(ticketData) {
     switchView('ticket-detail-section');
     const container = document.getElementById('ticket-detail-container');
@@ -846,9 +844,12 @@ function showTicketDetail(ticketData) {
     const totalAmount = ticketData.price * ticketData.count;
     const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
     
-    // We keep the beautiful HTML layout for the web view
+    const usernameBadge = document.getElementById('username-badge');
+    const username = usernameBadge ? usernameBadge.innerText : 'User';
+    const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
+
     container.innerHTML = `
-    <div class="ticket-receipt-wrapper">
+    <div class="ticket-receipt-wrapper" id="pdf-target-wrapper">
         <div class="ticket-receipt-main">
             <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom border-secondary border-opacity-25">
                 <div>
@@ -931,7 +932,6 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
-    // 🚨 NEW: PURE jsPDF GENERATION LOGIC (NO HTML SCREENSHOTS)
     safeBind('download-pdf-btn', 'click', () => {
         if (!window.jspdf) {
             alert("PDF engine is still loading. Please wait a second and try again.");
@@ -948,14 +948,14 @@ function showTicketDetail(ticketData) {
             const doc = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
-                format: [200, 100] // Sleek physical ticket size (200x100mm)
+                format: [200, 100] 
             });
 
             // TICKET BACKGROUND
             doc.setFillColor(255, 255, 255);
             doc.rect(0, 0, 200, 100, 'F');
 
-            // LEFT BRAND EDGE (TicketHub Red)
+            // LEFT BRAND EDGE
             doc.setFillColor(239, 68, 68); 
             doc.rect(0, 0, 8, 100, 'F');
 
@@ -963,7 +963,6 @@ function showTicketDetail(ticketData) {
             doc.setTextColor(20, 20, 20);
             doc.setFontSize(22);
             doc.setFont("helvetica", "bold");
-            // Truncate title if too long to prevent wrapping bugs
             let safeTitle = ticketData.eventTitle;
             if (safeTitle.length > 25) safeTitle = safeTitle.substring(0, 25) + "...";
             doc.text(safeTitle, 15, 20);
@@ -977,7 +976,7 @@ function showTicketDetail(ticketData) {
             doc.setFont("helvetica", "bold");
             doc.text("CONFIRMED", 32.5, 30, { align: "center" });
 
-            // DETAILS (DATE / TIME)
+            // DETAILS
             doc.setTextColor(120, 120, 120);
             doc.setFontSize(8);
             doc.setFont("helvetica", "bold");
@@ -1024,7 +1023,6 @@ function showTicketDetail(ticketData) {
 
             doc.setTextColor(20, 20, 20);
             doc.setFontSize(14);
-            // Native fonts lack the ₹ symbol, so we use INR to keep it pristine
             doc.text(`INR ${totalAmount.toLocaleString()}`, 135, 86, { align: "right" });
 
             // PERFORATED DIVIDER LINE
@@ -1033,12 +1031,11 @@ function showTicketDetail(ticketData) {
             doc.setLineDashPattern([2, 2], 0);
             doc.line(145, 5, 145, 95);
 
-            // TICKET STUB / QR CODE
+            // TICKET STUB
             doc.setTextColor(20, 20, 20);
             doc.setFontSize(14);
             doc.text("ENTRY PASS", 172.5, 20, { align: "center" });
 
-            // Grab QR Canvas image data cleanly from the DOM
             const qrCanvas = document.querySelector('#full-ticket-qr canvas');
             if (qrCanvas) {
                 const qrData = qrCanvas.toDataURL('image/png');
@@ -1055,7 +1052,6 @@ function showTicketDetail(ticketData) {
             doc.setFont("helvetica", "bold");
             doc.text(ticketData.bookingRef, 172.5, 85, { align: "center" });
 
-            // Trigger Download
             doc.save(`TicketHub_${ticketData.bookingRef}.pdf`);
 
             btn.innerHTML = originalText;
