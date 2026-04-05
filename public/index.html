@@ -252,12 +252,30 @@
             </div>
         </div>
     </section>
+
+    <div class="modal fade" id="cancelSeatModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header border-bottom border-secondary pb-3">
+                    <h5 class="modal-title fw-bold text-white">Select Seats to Cancel</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-start">
+                    <p class="text-muted mb-3" style="font-size: 14px;">Select the specific seats you want to remove from this booking.</p>
+                    <div id="cancel-seat-list" class="d-flex flex-wrap gap-2 mb-4">
+                        </div>
+                    <button type="button" id="confirm-partial-cancel-btn" class="btn btn-danger w-100 fw-bold py-3">Confirm Cancellation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
-<script src="js/app.js?v=V13" defer></script>
+<script src="js/app.js?v=V14" defer></script>
 </body>
 </html>
