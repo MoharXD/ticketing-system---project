@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=V13">
+    <link rel="stylesheet" href="css/style.css?v=V14">
 </head>
 
 <body class="text-white d-flex flex-column min-vh-100">
@@ -261,7 +261,12 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4 text-start">
-                    <p class="text-muted mb-3" style="font-size: 14px;">Select the specific seats you want to remove from this booking.</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                        <p class="text-muted mb-0" style="font-size: 13px;">Select seats to remove from booking</p>
+                        <button type="button" id="select-all-cancel-btn" class="btn btn-sm btn-dark border-secondary text-white fw-bold" style="font-size: 11px; padding: 4px 10px;" data-state="none">Select All</button>
+                    </div>
+
                     <div id="cancel-seat-list" class="d-flex flex-wrap gap-2 mb-4">
                         </div>
                     <button type="button" id="confirm-partial-cancel-btn" class="btn btn-danger w-100 fw-bold py-3">Confirm Cancellation</button>
@@ -276,6 +281,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
-<script src="js/app.js?v=V14" defer></script>
+<script src="js/app.js?v=V15" defer></script>
 </body>
 </html>
