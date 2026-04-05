@@ -192,27 +192,29 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
     .admin-event-row > div:last-child { margin-bottom: 0; justify-content: flex-start; border: none !important; padding-left: 0 !important;}
 }
 
-/* 🚨 NEW: PARTIAL CANCELLATION MODAL UI */
-.cancel-seat-checkbox { 
-    display: none; 
+/* 🚨 NEW: SEAT CANCELLATION PILL UI */
+.cancel-seat-pill {
+    background-color: var(--surface-hover);
+    border: 1px solid #3f3f46;
+    color: var(--text-main);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-bouncy);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
-.cancel-seat-label {
-    background-color: var(--surface-hover); 
-    color: var(--text-main); 
-    padding: 8px 16px; 
-    border-radius: var(--radius-sm); 
-    font-size: 14px; 
-    font-weight: 700; 
-    border: 2px solid #3f3f46; 
-    cursor: pointer; 
-    transition: all 0.2s ease;
-}
-.cancel-seat-label:hover {
+.cancel-seat-pill:hover {
     border-color: #52525b;
+    transform: translateY(-2px);
 }
-.cancel-seat-checkbox:checked + .cancel-seat-label {
-    background-color: rgba(239, 68, 68, 0.15); 
-    color: var(--danger);
-    border-color: var(--danger);
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+.cancel-seat-pill.selected {
+    background-color: var(--brand-primary);
+    color: white;
+    border-color: var(--brand-primary);
+    box-shadow: 0 4px 10px var(--brand-glow);
+    transform: scale(1.05);
 }
