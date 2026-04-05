@@ -732,12 +732,19 @@ safeBind('nav-bookings-link', 'click', async (e) => {
 });
 
 
-// 🚨 NEW: MODAL CANCELLATION LOGIC WITH PILLS
+// 🚨 NEW: MODAL CANCELLATION LOGIC WITH PILLS & SELECT ALL
 safeBind('my-tickets-container', 'click', async (e) => {
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
     if (cancelBtn) {
         const idsToCancel = JSON.parse(decodeURIComponent(cancelBtn.getAttribute('data-json')));
         
+        // Reset the "Select All" button state when opening a new modal
+        const selectAllBtn = document.getElementById('select-all-cancel-btn');
+        if (selectAllBtn) {
+            selectAllBtn.innerText = 'Select All';
+            selectAllBtn.dataset.state = 'none';
+        }
+
         // Inject seats into the modal as interactive pills
         const seatListContainer = document.getElementById('cancel-seat-list');
         seatListContainer.innerHTML = idsToCancel.map((idObj) => `
@@ -760,11 +767,44 @@ safeBind('my-tickets-container', 'click', async (e) => {
     }
 });
 
-// Handle toggling the selection state of the cancellation pills
+// 🚨 NEW: Handle Select All / Deselect All logic
+safeBind('select-all-cancel-btn', 'click', (e) => {
+    const btn = e.target;
+    const pills = document.querySelectorAll('.cancel-seat-pill');
+    
+    if (btn.dataset.state === 'all') {
+        // Deselect all
+        pills.forEach(p => p.classList.remove('selected'));
+        btn.innerText = 'Select All';
+        btn.dataset.state = 'none';
+    } else {
+        // Select all
+        pills.forEach(p => p.classList.add('selected'));
+        btn.innerText = 'Deselect All';
+        btn.dataset.state = 'all';
+    }
+});
+
+// Handle toggling the selection state of individual cancellation pills
 safeBind('cancel-seat-list', 'click', (e) => {
     const pill = e.target.closest('.cancel-seat-pill');
     if (pill) {
         pill.classList.toggle('selected');
+        
+        // 🚨 NEW: Sync the "Select All" button automatically
+        const allPills = document.querySelectorAll('.cancel-seat-pill');
+        const selectedPills = document.querySelectorAll('.cancel-seat-pill.selected');
+        const selectAllBtn = document.getElementById('select-all-cancel-btn');
+        
+        if (selectAllBtn) {
+            if (allPills.length > 0 && allPills.length === selectedPills.length) {
+                selectAllBtn.innerText = 'Deselect All';
+                selectAllBtn.dataset.state = 'all';
+            } else {
+                selectAllBtn.innerText = 'Select All';
+                selectAllBtn.dataset.state = 'none';
+            }
+        }
     }
 });
 
