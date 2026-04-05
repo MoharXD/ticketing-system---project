@@ -18,7 +18,7 @@ let currentCategoryFilter = 'All';
 let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
-let cancelModalInstance = null; // 🚨 NEW: Global variable for the cancellation modal
+let cancelModalInstance = null; // 🚨 Global variable for the cancellation modal
 
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
@@ -732,22 +732,20 @@ safeBind('nav-bookings-link', 'click', async (e) => {
 });
 
 
-// 🚨 NEW: MODAL CANCELLATION LOGIC
+// 🚨 NEW: MODAL CANCELLATION LOGIC WITH PILLS
 safeBind('my-tickets-container', 'click', async (e) => {
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
     if (cancelBtn) {
         const idsToCancel = JSON.parse(decodeURIComponent(cancelBtn.getAttribute('data-json')));
         
-        // 1. Inject seats into the modal as hidden checkboxes
+        // Inject seats into the modal as interactive pills
         const seatListContainer = document.getElementById('cancel-seat-list');
-        seatListContainer.innerHTML = idsToCancel.map((idObj, index) => `
-            <div>
-                <input type="checkbox" id="cancel-seat-${index}" class="cancel-seat-checkbox" value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}'>
-                <label class="cancel-seat-label" for="cancel-seat-${index}">${idObj.seatId.replace('GA-', '')}</label>
-            </div>
+        seatListContainer.innerHTML = idsToCancel.map((idObj) => `
+            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}'>
+                ${idObj.seatId.replace('GA-', '')}
+            </button>
         `).join('');
 
-        // 2. Initialize and show the Bootstrap modal
         if(!cancelModalInstance) {
             cancelModalInstance = new bootstrap.Modal(document.getElementById('cancelSeatModal'));
         }
@@ -762,16 +760,24 @@ safeBind('my-tickets-container', 'click', async (e) => {
     }
 });
 
-// 🚨 NEW: HANDLE CONFIRMATION INSIDE THE MODAL
+// Handle toggling the selection state of the cancellation pills
+safeBind('cancel-seat-list', 'click', (e) => {
+    const pill = e.target.closest('.cancel-seat-pill');
+    if (pill) {
+        pill.classList.toggle('selected');
+    }
+});
+
+// Handle the actual confirmation inside the modal
 safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
-    const selectedCheckboxes = document.querySelectorAll('.cancel-seat-checkbox:checked');
+    const selectedPills = document.querySelectorAll('.cancel-seat-pill.selected');
     
-    if (selectedCheckboxes.length === 0) {
+    if (selectedPills.length === 0) {
         alert("Please select at least one seat to cancel.");
         return;
     }
 
-    if (!confirm(`Are you sure you want to permanently cancel these ${selectedCheckboxes.length} seat(s)?`)) return;
+    if (!confirm(`Are you sure you want to permanently cancel these ${selectedPills.length} seat(s)?`)) return;
 
     const btn = e.target;
     const originalText = btn.innerText;
@@ -779,8 +785,8 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Cancelling...';
 
     try {
-        for (let checkbox of selectedCheckboxes) {
-            const idObj = JSON.parse(checkbox.value);
+        for (let pill of selectedPills) {
+            const idObj = JSON.parse(pill.getAttribute('data-value'));
             await fetch('/api/events/cancel-booking', { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
@@ -789,7 +795,7 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
         }
         
         cancelModalInstance.hide();
-        document.getElementById('nav-bookings-link')?.click(); // Refresh the bookings view
+        document.getElementById('nav-bookings-link')?.click(); 
     } catch (err) { 
         alert('Cancellation failed due to a network error.'); 
     } finally {
