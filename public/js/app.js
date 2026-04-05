@@ -18,7 +18,7 @@ let currentCategoryFilter = 'All';
 let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
-let cancelModalInstance = null; // Global variable for the cancellation modal
+let cancelModalInstance = null; 
 
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
@@ -731,24 +731,21 @@ safeBind('nav-bookings-link', 'click', async (e) => {
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
-
-// 🚨 NEW: MODAL CANCELLATION LOGIC WITH PILLS & SELECT ALL
+// 🚨 MODAL CANCELLATION LOGIC WITH PILLS & SELECT ALL
 safeBind('my-tickets-container', 'click', async (e) => {
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
     if (cancelBtn) {
         const idsToCancel = JSON.parse(decodeURIComponent(cancelBtn.getAttribute('data-json')));
         
-        // Reset the "Select All" button state when opening a new modal
         const selectAllBtn = document.getElementById('select-all-cancel-btn');
         if (selectAllBtn) {
             selectAllBtn.innerText = 'Select All';
             selectAllBtn.dataset.state = 'none';
         }
 
-        // Inject seats into the modal as interactive pills
         const seatListContainer = document.getElementById('cancel-seat-list');
         seatListContainer.innerHTML = idsToCancel.map((idObj) => `
-            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}'>
+            <button type="button" class="cancel-seat-pill" data-value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}' >
                 ${idObj.seatId.replace('GA-', '')}
             </button>
         `).join('');
@@ -767,31 +764,26 @@ safeBind('my-tickets-container', 'click', async (e) => {
     }
 });
 
-// Handle Select All / Deselect All logic
 safeBind('select-all-cancel-btn', 'click', (e) => {
     const btn = e.target;
     const pills = document.querySelectorAll('.cancel-seat-pill');
     
     if (btn.dataset.state === 'all') {
-        // Deselect all
         pills.forEach(p => p.classList.remove('selected'));
         btn.innerText = 'Select All';
         btn.dataset.state = 'none';
     } else {
-        // Select all
         pills.forEach(p => p.classList.add('selected'));
         btn.innerText = 'Deselect All';
         btn.dataset.state = 'all';
     }
 });
 
-// Handle toggling the selection state of individual cancellation pills
 safeBind('cancel-seat-list', 'click', (e) => {
     const pill = e.target.closest('.cancel-seat-pill');
     if (pill) {
         pill.classList.toggle('selected');
         
-        // Sync the "Select All" button automatically
         const allPills = document.querySelectorAll('.cancel-seat-pill');
         const selectedPills = document.querySelectorAll('.cancel-seat-pill.selected');
         const selectAllBtn = document.getElementById('select-all-cancel-btn');
@@ -808,7 +800,6 @@ safeBind('cancel-seat-list', 'click', (e) => {
     }
 });
 
-// Handle the actual confirmation inside the modal
 safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
     const selectedPills = document.querySelectorAll('.cancel-seat-pill.selected');
     
@@ -844,8 +835,6 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
     }
 });
 
-
-// 🚨 NEW: PREMIUM TICKET RECEIPT LOGIC
 function showTicketDetail(ticketData) {
     switchView('ticket-detail-section');
     const container = document.getElementById('ticket-detail-container');
@@ -855,7 +844,10 @@ function showTicketDetail(ticketData) {
     const totalAmount = ticketData.price * ticketData.count;
     const seatPills = ticketData.seats.map(s => `<span class="seat-pill-sm">${s.replace('GA-', '')}</span>`).join(' ');
     
-    // Build the new perforated ticket receipt UI
+    const usernameBadge = document.getElementById('username-badge');
+    const username = usernameBadge ? usernameBadge.innerText : 'User';
+    const bookedOnStr = new Date(ticketData.date).toLocaleDateString('en-GB');
+
     container.innerHTML = `
     <div class="ticket-receipt-wrapper" id="pdf-target-wrapper">
         <div class="ticket-receipt-main">
@@ -940,7 +932,7 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
-    // PDF Generation Logic updated for a landscape ticket layout
+    // 🚨 FIXED: Added windowWidth to force desktop layout inside the PDF
     safeBind('download-pdf-btn', 'click', () => {
         if (typeof html2pdf === 'undefined') {
             alert("PDF engine is still loading. Please wait a second and try again.");
@@ -954,11 +946,16 @@ function showTicketDetail(ticketData) {
 
         const element = document.getElementById('pdf-target-wrapper');
         const opt = {
-            margin:       0, // Removed margins for a cleaner digital ticket look
+            margin:       [0.3, 0.3], 
             filename:     `TicketHub_${ticketData.bookingRef}.pdf`,
             image:        { type: 'jpeg', quality: 1.0 },
-            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' }, // Matches --bg-main to hide the cutouts seamlessly
-            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' } // Landscape makes it fit perfectly horizontally
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                backgroundColor: '#0a0a0a',
+                windowWidth: 1200 // 🚨 This stops the layout from collapsing into mobile view
+            },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' } 
         };
         
         html2pdf().set(opt).from(element).save().then(() => {
