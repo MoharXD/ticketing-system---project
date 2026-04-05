@@ -18,6 +18,7 @@ let currentCategoryFilter = 'All';
 let pendingPaymentData = null;
 let paymentModalInstance = null;
 let finalCheckoutTotal = 0;
+let cancelModalInstance = null; // 🚨 NEW: Global variable for the cancellation modal
 
 let initialEventsPromise = fetch(`/api/events?t=${new Date().getTime()}`)
     .then(res => res.ok ? res.json() : [])
@@ -730,17 +731,27 @@ safeBind('nav-bookings-link', 'click', async (e) => {
     } catch (err) { container.innerHTML = '<p class="text-danger">Failed to load tickets.</p>'; }
 });
 
+
+// 🚨 NEW: MODAL CANCELLATION LOGIC
 safeBind('my-tickets-container', 'click', async (e) => {
     const cancelBtn = e.target.closest('.cancel-ticket-btn');
     if (cancelBtn) {
         const idsToCancel = JSON.parse(decodeURIComponent(cancelBtn.getAttribute('data-json')));
-        if (!confirm(`Are you sure you want to cancel these ${idsToCancel.length} ticket(s)?`)) return;
         
-        cancelBtn.disabled = true; cancelBtn.innerText = "Cancelling...";
-        try {
-            for(let idObj of idsToCancel) { await fetch('/api/events/cancel-booking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(idObj) }); }
-            document.getElementById('nav-bookings-link')?.click(); 
-        } catch (err) { alert('Cancellation failed due to a network error.'); }
+        // 1. Inject seats into the modal as hidden checkboxes
+        const seatListContainer = document.getElementById('cancel-seat-list');
+        seatListContainer.innerHTML = idsToCancel.map((idObj, index) => `
+            <div>
+                <input type="checkbox" id="cancel-seat-${index}" class="cancel-seat-checkbox" value='${JSON.stringify(idObj).replace(/'/g, "&#39;")}'>
+                <label class="cancel-seat-label" for="cancel-seat-${index}">${idObj.seatId.replace('GA-', '')}</label>
+            </div>
+        `).join('');
+
+        // 2. Initialize and show the Bootstrap modal
+        if(!cancelModalInstance) {
+            cancelModalInstance = new bootstrap.Modal(document.getElementById('cancelSeatModal'));
+        }
+        cancelModalInstance.show();
         return; 
     }
 
@@ -750,6 +761,43 @@ safeBind('my-tickets-container', 'click', async (e) => {
         showTicketDetail(ticketData);
     }
 });
+
+// 🚨 NEW: HANDLE CONFIRMATION INSIDE THE MODAL
+safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
+    const selectedCheckboxes = document.querySelectorAll('.cancel-seat-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        alert("Please select at least one seat to cancel.");
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to permanently cancel these ${selectedCheckboxes.length} seat(s)?`)) return;
+
+    const btn = e.target;
+    const originalText = btn.innerText;
+    btn.disabled = true; 
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Cancelling...';
+
+    try {
+        for (let checkbox of selectedCheckboxes) {
+            const idObj = JSON.parse(checkbox.value);
+            await fetch('/api/events/cancel-booking', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(idObj) 
+            });
+        }
+        
+        cancelModalInstance.hide();
+        document.getElementById('nav-bookings-link')?.click(); // Refresh the bookings view
+    } catch (err) { 
+        alert('Cancellation failed due to a network error.'); 
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+});
+
 
 function showTicketDetail(ticketData) {
     switchView('ticket-detail-section');
@@ -803,6 +851,7 @@ function showTicketDetail(ticketData) {
         }
     }, 50);
 
+    // 🚨 NEW: PDF Generation Logic 
     safeBind('download-pdf-btn', 'click', () => {
         if (typeof html2pdf === 'undefined') {
             alert("PDF engine is still loading. Please wait a second and try again.");
@@ -878,29 +927,6 @@ safeBind('profile-form', 'submit', async (e) => {
 safeBind('profile-dob', 'change', (e) => {
     const ageInput = document.getElementById('profile-age');
     if(ageInput && e.target.value) ageInput.value = Math.abs(new Date(Date.now() - new Date(e.target.value).getTime()).getUTCFullYear() - 1970);
-});
-
-// ==========================================
-// 📱 MOBILE NAVBAR AUTO-CLOSE FIX
-// ==========================================
-document.addEventListener('click', (event) => {
-    const mobileNavbar = document.getElementById('mobileNavbar');
-    const toggler = document.querySelector('.navbar-toggler');
-    
-    // If the menu is open and the click was outside both the menu and the toggler button
-    if (mobileNavbar && mobileNavbar.classList.contains('show')) {
-        if (!mobileNavbar.contains(event.target) && !toggler.contains(event.target)) {
-            // Use Bootstrap's native collapse API to hide it smoothly
-            if (typeof bootstrap !== 'undefined') {
-                const bsCollapse = bootstrap.Collapse.getInstance(mobileNavbar);
-                if (bsCollapse) {
-                    bsCollapse.hide();
-                } else {
-                    mobileNavbar.classList.remove('show');
-                }
-            }
-        }
-    }
 });
 
 (async function initializeApp() {
