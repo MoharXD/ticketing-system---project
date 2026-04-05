@@ -29,7 +29,6 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* 🚨 FIXED: Added !important to background-color to stop Bootstrap from turning it grey */
 body { font-family: var(--font-family); background-color: var(--bg-main) !important; color: var(--text-main) !important; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--text-main) !important; }
 
@@ -131,16 +130,91 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
 .ticket-card-ui:hover { border-color: #3f3f46 !important; }
 .ticket-qr-section { background-color: #121212; min-width: 180px; border-right: 1px solid #262626; }
 
-/* FULL TICKET DETAIL UI */
-.ticket-detail-wrapper { border: 1px solid #ef4444; border-radius: 12px; overflow: hidden; background-color: var(--surface-card); margin-bottom: 24px; }
-.ticket-detail-header { background-color: #ef4444; color: white; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
-.ticket-detail-body { padding: 30px 24px; }
-.ticket-detail-qr-container { background: white; padding: 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.ticket-detail-footer { border-top: 1px solid #262626; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; background-color: #0a0a0a; }
-.info-card { background-color: var(--surface-card); border: 1px solid #262626; border-radius: 12px; padding: 24px; margin-bottom: 30px; }
-.info-card ul { padding-left: 20px; color: var(--text-muted); font-size: 14px; margin-bottom: 0; }
-.info-card ul li { margin-bottom: 12px; }
-.info-card ul li::marker { color: #ef4444; font-size: 1.2em;}
+
+/* 🎟️ PREMIUM REALISTIC TICKET RECEIPT UI */
+.ticket-receipt-wrapper {
+    display: flex;
+    flex-direction: row;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+.ticket-receipt-main {
+    flex: 2.5;
+    padding: 40px;
+}
+.ticket-receipt-divider {
+    position: relative;
+    width: 2px;
+    background-image: linear-gradient(to bottom, #3f3f46 50%, transparent 50%);
+    background-size: 2px 20px;
+    background-repeat: repeat-y;
+}
+.ticket-receipt-divider::before,
+.ticket-receipt-divider::after {
+    content: "";
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-color: var(--bg-main) !important;
+    border-radius: 50%;
+    left: -19px;
+    border: 1px solid var(--border-color);
+}
+.ticket-receipt-divider::before { 
+    top: -21px; 
+    clip-path: polygon(0% 50%, 100% 50%, 100% 100%, 0% 100%); 
+}
+.ticket-receipt-divider::after { 
+    bottom: -21px; 
+    clip-path: polygon(0% 0%, 100% 0%, 100% 50%, 0% 50%); 
+}
+.ticket-receipt-stub {
+    flex: 1;
+    padding: 40px 30px;
+    background-color: #0d0d0f; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 16px 16px 0;
+}
+.icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+/* SEAT CANCELLATION PILL UI */
+.cancel-seat-pill {
+    background-color: var(--surface-hover);
+    border: 1px solid #3f3f46;
+    color: var(--text-main);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-bouncy);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.cancel-seat-pill:hover { border-color: #52525b; transform: translateY(-2px); }
+.cancel-seat-pill.selected {
+    background-color: var(--brand-primary);
+    color: white; border-color: var(--brand-primary);
+    box-shadow: 0 4px 10px var(--brand-glow); transform: scale(1.05);
+}
 
 /* ADMIN EVENT LIST UI */
 .admin-event-row { background-color: var(--surface-card); border: 1px solid var(--border-color); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease; }
@@ -176,12 +250,26 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
     .seat-map-wrapper { overflow-x: auto; padding-bottom: 20px; -webkit-overflow-scrolling: touch; width: 100%; scrollbar-width: thin; }
     .ticket-card-ui .d-flex.flex-md-row { flex-direction: column; }
     .ticket-qr-section { border-right: none; border-bottom: 1px solid #262626; padding: 20px !important;}
-    .ticket-detail-body { padding: 20px 15px; flex-direction: column; gap: 30px !important;}
-    .ticket-detail-header { padding: 15px; flex-direction: column; align-items: flex-start; gap: 15px;}
-    .ticket-detail-header .badge { align-self: flex-start; }
-    .ticket-detail-footer { flex-direction: column; align-items: flex-start; gap: 15px; }
-    .ticket-detail-footer .d-flex { justify-content: flex-start !important; width: 100%; }
-    #selected-event-details-bar { flex-direction: column; gap: 10px !important; align-items: flex-start; }
+    
+    /* Responsive Ticket Receipt */
+    .ticket-receipt-wrapper { flex-direction: column; }
+    .ticket-receipt-main { padding: 30px 20px; }
+    .ticket-receipt-stub { padding: 30px 20px; border-radius: 0 0 16px 16px;}
+    .ticket-receipt-divider {
+        width: 100%; height: 2px;
+        background-image: linear-gradient(to right, #3f3f46 50%, transparent 50%);
+        background-size: 20px 2px; background-repeat: repeat-x;
+    }
+    .ticket-receipt-divider::before,
+    .ticket-receipt-divider::after { left: auto; top: -19px; }
+    .ticket-receipt-divider::before { 
+        left: -21px; top: -19px;
+        clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%); 
+    }
+    .ticket-receipt-divider::after { 
+        right: -21px; left: auto; top: -19px;
+        clip-path: polygon(0% 0%, 50% 0%, 50% 100%, 0% 100%); 
+    }
 }
 @media (max-width: 576px) {
     .category-filter-btn { flex: 1 1 40%; padding: 10px !important; font-size: 0.8rem; }
@@ -190,31 +278,4 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
     .admin-event-row { padding: 12px; flex-direction: column; align-items: flex-start; }
     .admin-event-row > div { width: 100%; margin-bottom: 15px; }
     .admin-event-row > div:last-child { margin-bottom: 0; justify-content: flex-start; border: none !important; padding-left: 0 !important;}
-}
-
-/* 🚨 NEW: SEAT CANCELLATION PILL UI */
-.cancel-seat-pill {
-    background-color: var(--surface-hover);
-    border: 1px solid #3f3f46;
-    color: var(--text-main);
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s var(--ease-bouncy);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-.cancel-seat-pill:hover {
-    border-color: #52525b;
-    transform: translateY(-2px);
-}
-.cancel-seat-pill.selected {
-    background-color: var(--brand-primary);
-    color: white;
-    border-color: var(--brand-primary);
-    box-shadow: 0 4px 10px var(--brand-glow);
-    transform: scale(1.05);
 }
