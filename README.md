@@ -106,6 +106,3 @@ ticketing-system/
 
 ## 👨‍💻 Author
 **Mohar Gorai** B.Tech Information Technology | Vellore Institute of Technology (VIT)
-```
-
-Are there any specific deployment links (like Vercel, Render, or Heroku) or screenshots you'd like to add into this document before you push it to GitHub?
