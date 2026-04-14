@@ -241,6 +241,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.5px; color: var(--
     .navbar-collapse {
         background-color: var(--surface-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);
         position: absolute; top: 75px; left: 15px; right: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        z-index: 1050;
     }
 }
 @media (max-width: 768px) {
