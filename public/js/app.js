@@ -101,6 +101,11 @@ const switchView = (viewId) => {
     });
     document.getElementById(viewId)?.classList.remove('d-none');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const navbarCollapse = document.getElementById('mobileNavbar');
+    if (navbarCollapse && navbarCollapse.classList.contains('show')) {
+        document.querySelector('.navbar-toggler')?.click();
+    }
 };
 
 safeBind('home-logo', 'click', (e) => { e.preventDefault(); switchView('booking-section'); });
@@ -807,8 +812,6 @@ safeBind('confirm-partial-cancel-btn', 'click', async (e) => {
         alert("Please select at least one seat to cancel.");
         return;
     }
-
-    // 🚨 FIXED: Removed the redundant confirm() popup here
 
     const btn = e.target;
     const originalText = btn.innerText;
